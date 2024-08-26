@@ -1,0 +1,11 @@
+3D Pyramid
+O,O,O;O,O,O;O,O,O/O,O,O;O,O,O;O,O,O=X,X,X;X,X,X;X,X,X/O,O,O;O,A,O;O,O,O
+
+2D Diagonal
+O,O,O;O,O,O;O,O,O=O,O,X;O,X,O;X,O,O
+
+2D 3x2
+O,O,O;O,O,O=X,O,X;O,X,O
+
+2D 2x3
+O,O;O,O;O,O=X,O;O,X;X,O

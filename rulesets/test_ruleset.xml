@@ -1,0 +1,5 @@
+<ruleset name="testrules" type="series" repeat="f" limit="10">
+	<rule name="g1" rotx="t" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="1">O=G</rule>
+	<rule name="g2" rotx="t" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="-1">*,*,*;*,G,*;*,*,*=G,G,G;G,G,G;G,G,G</rule>
+	<rule name="g3" rotx="t" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="-1">*/G=G/G</rule>
+</ruleset>
