@@ -222,88 +222,59 @@ namespace MJ_Proc_Gen
                         int rx = ruleIn.Value.GetLength(0); //prefix r (rule) = the dimensions of the ruleIn array
                         int ry = ruleIn.Value.GetLength(1);
                         int rz = ruleIn.Value.GetLength(2);
-                        int dx = Convert.ToInt32(Math.Floor((decimal)rx / 2)); //prefix d (down) = the middle index rounded down
-                        int dy = Convert.ToInt32(Math.Floor((decimal)ry / 2));
-                        int dz = Convert.ToInt32(Math.Floor((decimal)rz / 2));
-                        int ux = Convert.ToInt32(Math.Ceiling((decimal)rx / 2)); //prefix u (up) = the middle index rounded up
-                        int uy = Convert.ToInt32(Math.Ceiling((decimal)ry / 2));
-                        int uz = Convert.ToInt32(Math.Ceiling((decimal)rz / 2));
-                        List<int> xOffsets = new List<int>(); //lists to contain offsets for each dimension
-                        List<int> yOffsets = new List<int>();
-                        List<int> zOffsets = new List<int>();
-                        xOffsets.Add(dx); //dx is always added
-                        yOffsets.Add(dy);
-                        zOffsets.Add(dz);
-                        if (dx == ux) { xOffsets.Add(dx - 1); } //if dx and ux are equal, we know that the dimension is even, and we need to check 2 offsets for each even dimension
-                        if (dy == uy) { yOffsets.Add(dy - 1); }
-                        if (dz == uz) { zOffsets.Add(dz - 1); }
                         int maxCellMatches = rx * ry * rz;
                         int cellMatches = 0;
                         Cell[,,] matchArray = new Cell[rx, ry, rz];
-                        foreach (int ox in xOffsets)
+                        for (int x = 0; x < rx; x++)
                         {
-                            foreach (int oy in yOffsets)
+                            for (int y = 0; y < ry; y++)
                             {
-                                foreach ( int oz in zOffsets)
+                                for (int z = 0; z < rz; z++)
                                 {
-                                    //main.debug.DebugLine("Searching for matches with offsets " + ox + "," + oy + "," + oz + " from cell " + cc.X + "," + cc.Y + "," + cc.Z);
-                                    for (int x = -ox; x < rx - ox; x++)
+                                    int ccx = cc.X + x;
+                                    int ccy = cc.Y + y;
+                                    int ccz = cc.Z + z;
+                                    bool xInRange = ccx >= 0 && ccx < SizeX;
+                                    bool yInRange = ccy >= 0 && ccy < SizeY;
+                                    bool zInRange = ccz >= 0 && ccz < SizeZ;
+                                    if (xInRange && yInRange && zInRange)
                                     {
-                                        for (int y = -oy; y < ry - oy; y++)
+                                        //main.debug.DebugLine("Cell state at cell " + ccx + "," + ccy + "," + ccz + " is \"" + CellGrid[ccx, ccy, ccz].State + "\" and corresponding rule state at " + px + "," + py + "," + pz + " is \"" + ruleIn.Value[px, py, pz] + "\"");
+                                        if (CellGrid[ccx, ccy, ccz].State == ruleIn.Value[x, y, z] || ruleIn.Value[x, y, z] == "*")
                                         {
-                                            for (int z = -oz; z < rz - oz; z++)
+                                            cellMatches++;
+                                            matchArray[x, y, z] = CellGrid[ccx, ccy, ccz];
+                                            //main.debug.DebugLine("cellMatches = " + cellMatches + " and maxCellMatches = " + maxCellMatches);
+                                            if (cellMatches == maxCellMatches)
                                             {
-                                                int ccx = cc.X + x;
-                                                int ccy = cc.Y + y;
-                                                int ccz = cc.Z + z;
-                                                int px = x + ox;
-                                                int py = y + oy;
-                                                int pz = z + oz;
-                                                bool xInRange = ccx >= 0 && ccx < SizeX;
-                                                bool yInRange = ccy >= 0 && ccy < SizeY;
-                                                bool zInRange = ccz >= 0 && ccz < SizeZ;
-                                                if (xInRange && yInRange && zInRange)
+                                                RuleMatch rm = new RuleMatch(matchArray, rule, ruleIn.Key);
+                                                if (!MatchOutputEqualsExistingState(rm))
                                                 {
-                                                    //main.debug.DebugLine("Cell state at cell " + ccx + "," + ccy + "," + ccz + " is \"" + CellGrid[ccx, ccy, ccz].State + "\" and corresponding rule state at " + px + "," + py + "," + pz + " is \"" + ruleIn.Value[px, py, pz] + "\"");
-                                                    if (CellGrid[ccx, ccy, ccz].State == ruleIn.Value[px, py, pz] || ruleIn.Value[px, py, pz] == "*")
+                                                    main.debug.DebugLine("Match found");
+                                                    ruleMatches.Add(rm);
+                                                    if (!findAll)
                                                     {
-                                                        cellMatches++;
-                                                        matchArray[px, py, pz] = CellGrid[ccx, ccy, ccz];
-                                                        //main.debug.DebugLine("cellMatches = " + cellMatches + " and maxCellMatches = " + maxCellMatches);
-                                                        if (cellMatches == maxCellMatches)
-                                                        {
-                                                            RuleMatch rm = new RuleMatch(matchArray, rule, ruleIn.Key);
-                                                            if (!MatchOutputEqualsExistingState(rm))
-                                                            {
-                                                                main.debug.DebugLine("Match found");
-                                                                ruleMatches.Add(rm);
-                                                                if (!findAll)
-                                                                {
-                                                                    return ruleMatches;
-                                                                }
-                                                            }
-                                                        }
-                                                        else { continue; }
+                                                        return ruleMatches;
                                                     }
-                                                    else
-                                                    {
-                                                        main.debug.DebugLine("Match failed: mismatch");
-                                                        goto endMatchLoop;
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    main.debug.DebugLine("Match failed: out of bounds");
-                                                    goto endMatchLoop;
                                                 }
                                             }
+                                            else { continue; }
+                                        }
+                                        else
+                                        {
+                                            main.debug.DebugLine("Match failed: mismatch");
+                                            goto endMatchLoop;
                                         }
                                     }
-                                    main.debug.DebugLine("Matching cycle ended");
-                                    endMatchLoop: cellMatches = 0;
+                                    else
+                                    {
+                                        main.debug.DebugLine("Match failed: out of bounds");
+                                        goto endMatchLoop;
+                                    }
                                 }
                             }
                         }
+                    endMatchLoop: cellMatches = 0;
                     }
                 }
             }
