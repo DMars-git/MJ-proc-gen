@@ -1,0 +1,6 @@
+<ruleset name="random" type="random" repeat="f" limit="100">
+	<rule name="g" type="basic" rotx="t" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="-1">O=G</rule>
+	<rule name="t" type="basic" rotx="t" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="-1">O=T</rule>
+	<rule name="s" type="basic" rotx="t" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="-1">O=S</rule>
+	<rule name="l" type="basic" rotx="t" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="-1">O=L</rule>
+</ruleset>
