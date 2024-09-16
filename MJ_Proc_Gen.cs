@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel.Design;
 using System.Data;
 using System.Runtime.CompilerServices;
@@ -72,8 +73,58 @@ namespace MJ_Proc_Gen
                 debug.DebugLine("Ruleset \"" + ruleSet.Name() + "\" run " + ruleSet.Uses() + " out of " + ruleSet.Limit());
                 switch (ruleSet.RType())
                 {
-                    case "random": //Select a random rule or ruleset from the current ruleset to execute once. Repeat until no valid rules remain. //TODO: implement random rulesets
+                    case "random": //Select a random rule or ruleset from the current ruleset to execute once. Repeat until no valid rules remain.
                         debug.DebugLine("Running as a random ruleset");
+                        //List<IRuleSet> rr = Randomizer.RandomList(ruleSet.ChildRuleSet, rng);
+                        while (ruleSet.LimitUnreached() && !ruleSet.IsFinishedInRound())
+                        {
+                            ruleSet.IncrementUses();
+                            IRuleSet rr = ruleSet.ChildRuleSet[rng.Next(ruleSet.ChildRuleSet.Count)];
+                            debug.DebugLine("Rule or ruleset \"" + rr.Name() + "\"");
+                            switch (rr.IType())
+                            {
+                                case "Rule":
+                                    debug.DebugLine("Running rule under current ruleset");
+                                    switch (rr.RType())
+                                    {
+                                        case "basic":
+                                            if (rr.LimitUnreached() && space.OpCount < maxOps)
+                                            {
+                                                RuleMatch rm = space.FindRuleMatches((Rule)rr, rng, maxOps, false)[0];
+                                                if (rr.LimitUnreached() && space.OpCount < maxOps && rm.MatchFound)
+                                                {
+                                                    space.ApplyRuleMatch(rm);
+                                                }
+                                            }
+                                            break;
+                                        case "parallel":
+                                            if (rr.LimitUnreached() && space.OpCount < maxOps)
+                                            {
+                                                List<RuleMatch> rml = space.FindRuleMatches((Rule)rr, rng, maxOps, true);
+                                                if (rr.LimitUnreached() && space.OpCount < maxOps && rml[0].MatchFound)
+                                                {
+                                                    debug.DebugLine("Found " + rml.Count + " matches for parallel rule " + rr.Name());
+                                                    //space.IncrementOpCount();
+                                                    foreach (RuleMatch rm in rml)
+                                                    {
+                                                        space.IncrementOpCount();
+                                                        space.ApplyRuleMatch(rm);
+                                                    }
+                                                    space.AppendOutput();
+                                                }
+                                            }
+                                            break;
+                                    }
+                                    break;
+                                case "RuleSet":
+                                    debug.DebugLine("Running nested ruleset under current ruleset");
+                                    RecursiveRunRuleSet(space, (RuleSet)rr, maxOps, rng);
+                                    break;
+                                default:
+                                    debug.DebugException("Unrecognized IType in RuleSet");
+                                    break;
+                            }
+                        }
                         break;
                     case "sequence": //Execute each rule in a ruleset one time in order. When the end of the ruleset is reached, start over from the beginning. //TODO: implement sequence rulesets
                         debug.DebugLine("Running as a sequence ruleset");
@@ -104,7 +155,6 @@ namespace MJ_Proc_Gen
                                             if (r.LimitUnreached() && space.OpCount < maxOps)
                                             {
                                                 List<RuleMatch> rml = space.FindRuleMatches((Rule)r, rng, maxOps, true);
-                                                //if (rml.Count == 0) { break; }
                                                 if (r.LimitUnreached() && space.OpCount < maxOps && rml[0].MatchFound)
                                                 {
                                                     debug.DebugLine("Found " + rml.Count + " matches for parallel rule " + r.Name());
@@ -120,7 +170,7 @@ namespace MJ_Proc_Gen
                                             break;
                                     }
                                     break;
-                                case "RuleSet": //TODO: consider making child rulesets of series rulesets repeat as many times as possible
+                                case "RuleSet":
                                     debug.DebugLine("Running nested ruleset under current ruleset");
                                     RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng);
                                     break;
@@ -199,16 +249,7 @@ namespace MJ_Proc_Gen
             List<RuleMatch> ruleMatches= new List<RuleMatch>();
             main.debug.DebugLine("FindRuleMatches() called. Checking if rule \"" + rule.Name() + "\" has a match. Operations count is " + OpCount);
             //create a randomly ordered queue of cells in space
-            Queue<Cell> cq = new Queue<Cell>();
-            List<Cell> cl = new List<Cell>();
-            foreach (Cell c in cellGrid)
-            {
-                cl.Insert(rng.Next(0, cl.Count), c);
-            }
-            foreach (Cell c in cl)
-            {
-                cq.Enqueue(c); 
-            }
+            Queue<Cell> cq = Randomizer.RandomQueue<Cell>(cellGrid, rng);
             //for each cell, check the rule and all its rotations
             while (cq.Count > 0 && opCount < maxOps)
             {
@@ -596,6 +637,46 @@ namespace MJ_Proc_Gen
                 debugText.Add(line);
                 throw new Exception("EXCEPTION: " + line);
             }
+        }
+    }
+    public static class Randomizer
+    {
+        public static List<T> RandomList<T>(List<T> c, Random rng)
+        {
+            List<T> l = new List<T>();
+            foreach (T t in c)
+            {
+                l.Insert(rng.Next(0, l.Count), t);
+            }
+            return l;
+        }
+        public static Queue<T> RandomQueue<T>(List<T> c, Random rng) 
+        {
+            Queue<T> q = new Queue<T>();
+            List<T> l = new List<T>();
+            foreach (T t in c)
+            {
+                l.Insert(rng.Next(0, l.Count), t);
+            }
+            foreach (T t in l)
+            {
+                q.Enqueue(t);
+            }
+            return q;
+        }
+        public static Queue<T> RandomQueue<T>(T[,,] c, Random rng)
+        {
+            Queue<T> q = new Queue<T>();
+            List<T> l = new List<T>();
+            foreach (T t in c)
+            {
+                l.Insert(rng.Next(0, l.Count), t);
+            }
+            foreach (T t in l)
+            {
+                q.Enqueue(t);
+            }
+            return q;
         }
     }
     public static class RGX //use this for typical regex comparisons
