@@ -1,0 +1,3 @@
+<ruleset name="rotref" type="random" repeat="f" limit="100">
+	<rule name="L" type="basic" rotx="t" roty="t" rotz="t" refx="t" refy="t" refz="t" limit="-1">O,O,O;O,O,O;O,O,O/O,O,O;O,O,O;O,O,O/O,O,O;O,O,O;O,O,O=G,G,G;O,O,G;O,O,G/T,O,O;O,O,O;O,O,O/T,O,O;O,O,O;O,O,O</rule>
+</ruleset>
