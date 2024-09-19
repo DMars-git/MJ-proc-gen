@@ -1,10 +1,10 @@
 <ruleset name="trees" type="series" repeat="f" limit="1">
-	<rule name="groundseed" type="basic" rotx="t" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="1">O/O/O/O=G/O/O/O</rule>
-	<rule name="groundroot" type="basic" rotx="t" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="-1">O/G=G/G</rule>
+	<rule name="groundseed" type="basic" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">O/O/O/O=G/O/O/O</rule>
+	<rule name="groundroot" type="basic" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">O/G=G/G</rule>
 	<ruleset name="spread" type="series" repeat="t" limit="-1">
-		<rule name="groundspread" type="parallel" rotx="f" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="-1">*,*,*;*,G,*;*,*,*=G,G,G;G,G,G;G,G,G</rule>
+		<rule name="groundspread" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">*,*,*;*,G,*;*,*,*=G,G,G;G,G,G;G,G,G</rule>
 	</ruleset>
-	<rule name="treeseed" type="basic" rotx="f" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="-1">G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G/O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O=G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G/O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,S,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O</rule>
-	<rule name="treetrunk" type="basic" rotx="f" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="120">S/O=S/S</rule>
-	<rule name="treeleaf" type="parallel" rotx="f" roty="t" rotz="f" refx="t" refy="t" refz="f" limit="1">*,*,*;*,S,*;*,*,*/*,*,*;*,O,*;*,*,*=L,L,L;L,S,L;L,L,L/L,L,L;L,L,L;L,L,L</rule>
+	<rule name="treeseed" type="basic" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G/O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O=G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G;G,G,G,G,G,G,G/O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,S,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O;O,O,O,O,O,O,O</rule>
+	<rule name="treetrunk" type="basic" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="120">S/O=S/S</rule>
+	<rule name="treeleaf" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">*,*,*;*,S,*;*,*,*/*,*,*;*,O,*;*,*,*=L,L,L;L,S,L;L,L,L/L,L,L;L,L,L;L,L,L</rule>
 </ruleset>
