@@ -1,12 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel.Design;
-using System.Data;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Xml;
-using System.Xml.Linq;
 
 namespace MJ_Proc_Gen
 {
@@ -249,7 +244,7 @@ namespace MJ_Proc_Gen
             List<RuleMatch> ruleMatches= new List<RuleMatch>();
             main.debug.DebugLine("FindRuleMatches() called. Checking if rule \"" + rule.Name() + "\" has a match. Operations count is " + OpCount);
             //create a randomly ordered queue of cells in space
-            Queue<Cell> cq = Randomizer.RandomQueue<Cell>(cellGrid, rng);
+            Queue<Cell> cq = Shuffle.RandomQueue<Cell>(cellGrid, rng);
             //for each cell, check the rule and all its rotations
             while (cq.Count > 0 && opCount < maxOps)
             {
@@ -257,12 +252,19 @@ namespace MJ_Proc_Gen
                 Cell cc = cq.Dequeue();
                 main.debug.DebugLine("Checking rule \"" + rule.Name() + "\" at cell " + cc.X + "," + cc.Y + "," + cc.Z + ". Cells remaining for this rule queue: " + cq.Count);
                 {
-                    foreach (KeyValuePair<string, string[,,]> ruleIn in rule.StrIn) //TODO: CHECK SYMMETRIES AND OFFSETS FROM CENTER IN A RANDOM ORDER INSTEAD
+                    List<string> keys = new List<string>();
+                    foreach (KeyValuePair<string, string[,,]> k in rule.StrIn)
                     {
-                        main.debug.DebugLine("Trying symmetry \"" + ruleIn.Key + "\"");
-                        int rx = ruleIn.Value.GetLength(0); //prefix r (rule) = the dimensions of the ruleIn array
-                        int ry = ruleIn.Value.GetLength(1);
-                        int rz = ruleIn.Value.GetLength(2);
+                        keys.Add(k.Key);
+                    }
+                    List<string> keysRandom = Shuffle.RandomList(keys, rng);
+                    foreach (string key in keysRandom/*KeyValuePair<string, string[,,]> ruleIn in rule.StrIn*/) //TODO: CHECK SYMMETRIES IN A RANDOM ORDER INSTEAD
+                    {
+                        string[,,] strArray = rule.StrIn[key];
+                        main.debug.DebugLine("Trying symmetry \"" + key + "\"");
+                        int rx = strArray.GetLength(0); //prefix r (rule) = the dimensions of the ruleIn array
+                        int ry = strArray.GetLength(1);
+                        int rz = strArray.GetLength(2);
                         int maxCellMatches = rx * ry * rz;
                         int cellMatches = 0;
                         Cell[,,] matchArray = new Cell[rx, ry, rz];
@@ -281,14 +283,14 @@ namespace MJ_Proc_Gen
                                     if (xInRange && yInRange && zInRange)
                                     {
                                         //main.debug.DebugLine("Cell state at cell " + ccx + "," + ccy + "," + ccz + " is \"" + CellGrid[ccx, ccy, ccz].State + "\" and corresponding rule state at " + px + "," + py + "," + pz + " is \"" + ruleIn.Value[px, py, pz] + "\"");
-                                        if (CellGrid[ccx, ccy, ccz].State == ruleIn.Value[x, y, z] || ruleIn.Value[x, y, z] == "*")
+                                        if (CellGrid[ccx, ccy, ccz].State == strArray[x, y, z] || strArray[x, y, z] == "*")
                                         {
                                             cellMatches++;
                                             matchArray[x, y, z] = CellGrid[ccx, ccy, ccz];
                                             //main.debug.DebugLine("cellMatches = " + cellMatches + " and maxCellMatches = " + maxCellMatches);
                                             if (cellMatches == maxCellMatches)
                                             {
-                                                RuleMatch rm = new RuleMatch(matchArray, rule, ruleIn.Key);
+                                                RuleMatch rm = new RuleMatch(matchArray, rule, key);
                                                 if (!MatchOutputEqualsExistingState(rm))
                                                 {
                                                     main.debug.DebugLine("Match found");
@@ -545,12 +547,153 @@ namespace MJ_Proc_Gen
             uses = 0;
             this.parentRuleSet = parentRuleSet;
             finishedInRound = false;
-            GenerateRotationsReflections(strIn["base"], symmetries);
-            GenerateRotationsReflections(strOut["base"], symmetries);
+            GenerateRotationsReflections(strIn, symmetries);
+            GenerateRotationsReflections(strOut, symmetries);
         }
-        private void GenerateRotationsReflections(string[,,] baseRule, bool[] sym) //TODO: IMPLEMENT ROTATIONS AND REFLECTIONS
+        private void GenerateRotationsReflections(Dictionary<string, string[,,]> dic, bool[] sym) //TODO: IMPLEMENT ROTATIONS AND REFLECTIONS
         {
-
+            main.debug.DebugLine("Generating rotations and reflections");
+            string[,,] baseRule = dic["base"];
+            List<string[,,]> noDupeList = new List<string[,,]>();
+            noDupeList.Add(baseRule);
+            int xs = baseRule.GetLength(0);
+            int ys = baseRule.GetLength(1);
+            int zs = baseRule.GetLength(2);
+            int xMax = xs - 1;
+            int yMax = ys - 1;
+            int zMax = zs - 1;
+            string[,,] rotx90 = new string[xs, zs, ys];
+            string[,,] rotx180 = new string[xs, ys, zs];
+            string[,,] rotx270 = new string[xs, zs, ys];
+            string[,,] roty90 = new string[zs, ys, xs];
+            string[,,] roty180 = new string[xs, ys, zs];
+            string[,,] roty270 = new string[zs, ys, xs];
+            string[,,] rotz90 = new string[ys, xs, zs];
+            string[,,] rotz180 = new string[xs, ys, zs];
+            string[,,] rotz270 = new string[ys, xs, zs];
+            string[,,] refx = new string[xs, ys, zs];
+            string[,,] refy = new string[xs, ys, zs];
+            string[,,] refz = new string[xs, ys, zs];
+            for (int x = 0; x < baseRule.GetLength(0); x++)
+            {
+                for (int y = 0; y < baseRule.GetLength(1); y++)
+                {
+                    for (int z = 0; z < baseRule.GetLength(2); z++)
+                    {
+                        if (sym[0])
+                        {
+                            rotx90[x, z, yMax - y] = baseRule[x, y, z];
+                            rotx180[x, yMax - y, zMax - z] = baseRule[x, y, z];
+                            rotx270[x, zMax - z, y] = baseRule[x, y, z];
+                            if (!noDupeList.Contains(rotx90)) { noDupeList.Add(rotx90); }
+                            if (!noDupeList.Contains(rotx180)) { noDupeList.Add(rotx180); }
+                            if (!noDupeList.Contains(rotx270)) { noDupeList.Add(rotx270); }
+                        }
+                        if (sym[1])
+                        {
+                            roty90[z, y, xMax - x] = baseRule[x, y, z];
+                            roty180[xMax - x, y, zMax - z] = baseRule[x, y, z];
+                            roty270[zMax - z, y, x] = baseRule[x, y, z];
+                            if (!noDupeList.Contains(roty90)) { noDupeList.Add(roty90); }
+                            if (!noDupeList.Contains(roty180)) { noDupeList.Add(roty180); }
+                            if (!noDupeList.Contains(roty270)) { noDupeList.Add(roty270); }
+                        }
+                        if (sym[2])
+                        {
+                            rotz90[y, xMax - x, z] = baseRule[x, y, z];
+                            rotz180[xMax - x, yMax - y, z] = baseRule[x, y, z];
+                            rotz270[yMax - y, x, z] = baseRule[x, y, z];
+                            if (!noDupeList.Contains(rotz90)) { noDupeList.Add(rotz90); }
+                            if (!noDupeList.Contains(rotz180)) { noDupeList.Add(rotz180); }
+                            if (!noDupeList.Contains(rotz270)) { noDupeList.Add(rotz270); }
+                        }
+                        if (sym[3])
+                        {
+                            refx[xMax - x, y, z] = baseRule[x, y, z];
+                            if (!noDupeList.Contains(refx)) { noDupeList.Add(refx); }
+                        }
+                        if (sym[4])
+                        {
+                            refy[x, yMax - y, z] = baseRule[x, y, z];
+                            if (!noDupeList.Contains(refy)) { noDupeList.Add(refy); }
+                        }
+                        if (sym[5])
+                        {
+                            refz[x, y, zMax - z] = baseRule[x, y, z];
+                            if (!noDupeList.Contains(refz)) { noDupeList.Add(refz); }
+                        }
+                    }
+                }
+            }
+            if (sym[0])
+            {
+                if (noDupeList.Contains(rotx90))
+                {
+                    main.debug.DebugLine("Adding rotx90");
+                    dic.Add("rotx90", rotx90);
+                }
+                if (noDupeList.Contains(rotx180))
+                {
+                    main.debug.DebugLine("Adding rotx180");
+                    dic.Add("rotx180", rotx180);
+                }
+                if (noDupeList.Contains(rotx270))
+                {
+                    main.debug.DebugLine("Adding rotx270");
+                    dic.Add("rotx270", rotx270);
+                }
+            }
+            if (sym[1])
+            {
+                if (noDupeList.Contains(roty90))
+                {
+                    main.debug.DebugLine("Adding roty90");
+                    dic.Add("roty90", roty90);
+                }
+                if (noDupeList.Contains(roty180))
+                {
+                    main.debug.DebugLine("Adding roty180");
+                    dic.Add("roty180", roty180);
+                }
+                if (noDupeList.Contains(roty270))
+                {
+                    main.debug.DebugLine("Adding roty270");
+                    dic.Add("roty270", roty270);
+                }
+            }
+            if (sym[2])
+            {
+                if (noDupeList.Contains(rotz90))
+                {
+                    main.debug.DebugLine("Adding rotz90");
+                    dic.Add("rotz90", rotz90);
+                }
+                if (noDupeList.Contains(rotz180))
+                {
+                    main.debug.DebugLine("Adding rotz180");
+                    dic.Add("rotz180", rotz180);
+                }
+                if (noDupeList.Contains(rotz270))
+                {
+                    main.debug.DebugLine("Adding rotz270");
+                    dic.Add("rotz270", rotz270);
+                }
+            }
+            if (sym[3] && noDupeList.Contains(refx))
+            {
+                main.debug.DebugLine("Adding refx");
+                dic.Add("refx", refx);
+            }
+            if (sym[4] && noDupeList.Contains(refy))
+            {
+                main.debug.DebugLine("Adding refy");
+                dic.Add("refy", refy);
+            }
+            if (sym[5] && noDupeList.Contains(refz))
+            {
+                main.debug.DebugLine("Adding refz");
+                dic.Add("refz", refz);
+            }
         }
     }
     public struct RuleMatch //conveys the necessary information to apply a matched rule
@@ -639,44 +782,39 @@ namespace MJ_Proc_Gen
             }
         }
     }
-    public static class Randomizer
+    public static class Shuffle //contains some methods to shuffle different collections
     {
-        public static List<T> RandomList<T>(List<T> c, Random rng)
+        public static List<T> RandomList<T>(List<T> input, Random rng)
         {
-            List<T> l = new List<T>();
-            foreach (T t in c)
+            T[] array = new T[input.Count];
+            List<int> remainingIndicies = new List<int>();
+            for (int a = 0; a < input.Count; a++)
             {
-                l.Insert(rng.Next(0, l.Count), t);
+                remainingIndicies.Add(a);
             }
-            return l;
+            int i = 0;
+            while (remainingIndicies.Count > 0)
+            {
+                int r = remainingIndicies[rng.Next(remainingIndicies.Count)];
+                array[i] = input[r];
+                remainingIndicies.Remove(r);
+                i++;
+            }
+            return new List<T>(array);
         }
-        public static Queue<T> RandomQueue<T>(List<T> c, Random rng) 
+        public static Queue<T> RandomQueue<T>(List<T> input, Random rng) 
         {
-            Queue<T> q = new Queue<T>();
-            List<T> l = new List<T>();
-            foreach (T t in c)
-            {
-                l.Insert(rng.Next(0, l.Count), t);
-            }
-            foreach (T t in l)
-            {
-                q.Enqueue(t);
-            }
-            return q;
+            return new Queue<T>(RandomList(input, rng));
         }
-        public static Queue<T> RandomQueue<T>(T[,,] c, Random rng)
+        public static Queue<T> RandomQueue<T>(T[,,] input, Random rng)
         {
-            Queue<T> q = new Queue<T>();
-            List<T> l = new List<T>();
-            foreach (T t in c)
+            List<T> list = new List<T>();
+            foreach(T t in input)
             {
-                l.Insert(rng.Next(0, l.Count), t);
+                list.Add(t);
             }
-            foreach (T t in l)
-            {
-                q.Enqueue(t);
-            }
-            return q;
+            List<T> randomList = RandomList(list, rng);
+            return new Queue<T>(randomList);
         }
     }
     public static class RGX //use this for typical regex comparisons
@@ -818,7 +956,6 @@ namespace MJ_Proc_Gen
                     for (int x = 0; x < sizeX; x++)
                     {
                         baseRuleArray[x, y, z] = fullSplit[i];
-                        main.debug.DebugLine("rule cell " + x + ", " + y + ", " + z + " is " + fullSplit[i]);
                         i++;
                     }
                 }
