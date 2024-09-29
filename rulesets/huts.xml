@@ -1,10 +1,10 @@
 <ruleset name="huts" type="series" repeat="f" limit="1">
-	<rule name="groundseed" type="basic" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">O/O/O/O/O/O=G/O/O/O/O/O</rule>
-	<rule name="groundroot" type="basic" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">O/G=G/G</rule>
+	<rule name="groundseed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">O/O/O/O/O/O=G/O/O/O/O/O</rule>
+	<rule name="groundroot" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">O/G=G/G</rule>
 	<ruleset name="spread1" type="series" repeat="t" limit="-1">
 		<rule name="groundspread" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">*,*,*;*,G,*;*,*,*=G,G,G;G,G,G;G,G,G</rule>
 	</ruleset>
-	<rule name="floorseed" type="basic" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="4">O/O=O/T</rule>
+	<rule name="floorseed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="4">O/O=O/T</rule>
 	<ruleset name="spread2" type="series" repeat="t" limit="4">
 		<rule name="floorspread" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">*,*,*;*,T,*;*,*,*=T,T,T;T,T,T;T,T,T</rule>
 	</ruleset>

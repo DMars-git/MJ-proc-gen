@@ -1,8 +1,8 @@
 <ruleset name="walker" type="series" repeat="f" limit="-1">
-	<rule name="seed" type="basic" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">O=T</rule>
+	<rule name="seed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">O=T</rule>
 	<ruleset name="grid" type="series" repeat="t" limit="-1">
 		<rule name="gridpoint" type="parallel" rotx="t" roty="t" rotz="t" refx="f" refy="f" refz="f" limit="-1">T,O,O=T,O,T</rule>
 	</ruleset>
-	<rule name="walkseed" type="basic" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">T=L</rule>
-	<rule name="walk" type="basic" rotx="t" roty="t" rotz="t" refx="f" refy="f" refz="f" limit="-1">L,O,T=G,G,L</rule>
+	<rule name="walkseed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">T=L</rule>
+	<rule name="walk" type="single" rotx="t" roty="t" rotz="t" refx="f" refy="f" refz="f" limit="-1">L,O,T=G,G,L</rule>
 </ruleset>

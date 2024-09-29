@@ -1,0 +1,13 @@
+<ruleset name="walkerRetrace" type="series" repeat="f" limit="-1">
+	<rule name="seed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">O=T</rule>
+	<ruleset name="grid" type="series" repeat="t" limit="-1">
+		<rule name="gridpoint" type="parallel" rotx="t" roty="t" rotz="t" refx="f" refy="f" refz="f" limit="-1">T,O,O=T,O,T</rule>
+	</ruleset>
+	<rule name="walkseed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">T=L</rule>
+	<ruleset name="walkbacktrack" type="retrace" repeat="t" limit="1000">
+		<rule name="walk" type="single" rotx="t" roty="t" rotz="t" refx="f" refy="f" refz="f" limit="-1">L,O,T=G,G,L</rule>
+		<rule name="backtrack" type="single" rotx="t" roty="t" rotz="t" refx="f" refy="f" refz="f" limit="-1">G,G,L=L,H,H</rule>
+	</ruleset>
+	<rule name="convertH" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" repeat="f" limit="1">H=G</rule>
+	<rule name="convertL" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" repeat="f" limit="1">L=G</rule>
+</ruleset>
