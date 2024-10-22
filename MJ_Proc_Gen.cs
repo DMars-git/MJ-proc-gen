@@ -57,126 +57,72 @@ namespace MJ_Proc_Gen
             RecursiveRunRuleSet(space, rootRuleSet, maxOperations, rng);
             debug.DebugLine("End RunMJ()");
         }
-        private void RecursiveRunRuleSet(Space space, RuleSet ruleSet, int maxOps, Random rng)
+        private bool RecursiveRunRuleSet(Space space, RuleSet ruleSet, int maxOps, Random rng)
         {
-            debug.DebugLine("Ruleset \"" + ruleSet.Name() + "\" has run " + ruleSet.Uses() + " out of " + ruleSet.Limit() + " times. Space \"" + space.Name + "\" has received " + space.OpCount + " operations out of " + maxOps);
-            if (ruleSet.IsFinishedInRound()) //TODO: What about rulesets meant to be repeated?
+            debug.DebugLine("Ruleset \"" + ruleSet.Name() + "\" has run " + ruleSet.Uses() + " out of " + ruleSet.Limit() + " times. Space \"" + space.Name + "\" has received " + space.OpCount + " operations out of " + maxOps + ". FinishedInRound is " + ruleSet.IsFinishedInRound());
+            //Conditions to run
+            if (ruleSet.RType() == "retrace") //Retrace rulsets need to check if previous rules will work. Therefore, we need to reset FinishedInRound
             {
+                debug.DebugLine("Ruleset \"" + ruleSet.Name() + "\" is a \"retrace\" type. Resetting FinishedInRound.");
                 ruleSet.ResetFinishedInRound();
-                return;
             }
-            if (ruleSet.LimitUnreached() && space.OpCount < maxOps) //Rule uses are incremented under ApplyRule(). opCount is incremented under FindRuleMatch() and ApplyRule()
+            if (ruleSet.IsFinishedInRound()) //Do not run if rule is finished in round
             {
-                ruleSet.IncrementUses();
-                debug.DebugLine("Ruleset \"" + ruleSet.Name() + "\" run " + ruleSet.Uses() + " out of " + ruleSet.Limit());
-                switch (ruleSet.RType())
-                {
-                    case "random": //Select a random rule or ruleset from the current ruleset to execute once. Repeat until no valid rules remain.
-                        debug.DebugLine("Running as a random ruleset");
-                        while (ruleSet.LimitUnreached() && !ruleSet.IsFinishedInRound())
+                debug.DebugLine("Ruleset \"" + ruleSet.Name() + "\" is finished in round");
+                return false;
+            }
+            if (!ruleSet.LimitUnreached()) //Do not run if ruleSet use limit is reached. Rule uses are incremented under ApplyRule(). 
+            {
+                debug.DebugLine("Limit reached for ruleset \"" + ruleSet.Name() + "\"");
+                return false;
+            }
+            if (space.OpCount >= maxOps) //Do not run if maxOps is reached. OpCount is incremented under FindRuleMatch() and ApplyRule()
+            {
+                debug.DebugLine("Space \"" + space.Name + "\" operations count maxed out.");
+                return false;
+            }
+            //Run RuleSet depending on its RType
+            debug.DebugLine("Ruleset \"" + ruleSet.Name() + "\" run " + ruleSet.Uses() + " out of " + ruleSet.Limit());
+            switch (ruleSet.RType())
+            {
+                case "random": //Select a random rule or ruleset from the current ruleset to execute once. Repeat until no valid rules remain.
+                    debug.DebugLine("Running as a random ruleset");
+                    if (ruleSet.LimitUnreached() && !ruleSet.IsFinishedInRound())
+                    {
+                        ruleSet.IncrementUses();
+                        IRuleSet r = ruleSet.ChildRuleSet[rng.Next(ruleSet.ChildRuleSet.Count)];
+                        debug.DebugLine("Rule or ruleset \"" + r.Name() + "\"");
+                        switch (r.IType())
                         {
-                            ruleSet.IncrementUses();
-                            IRuleSet rr = ruleSet.ChildRuleSet[rng.Next(ruleSet.ChildRuleSet.Count)];
-                            debug.DebugLine("Rule or ruleset \"" + rr.Name() + "\"");
-                            switch (rr.IType())
-                            {
-                                case "Rule":
-                                    debug.DebugLine("Running rule under current ruleset");
-                                    switch (rr.RType())
-                                    {
-                                        case "single":
-                                            RunRuleSingleOnce(rr, space, maxOps, rng);
-                                            break;
-                                        case "parallel":
-                                            RunRuleParallel(rr, space, maxOps, rng);
-                                            break;
-                                    }
-                                    break;
-                                case "RuleSet":
-                                    debug.DebugLine("Running nested ruleset under current random ruleset");
-                                    RecursiveRunRuleSet(space, (RuleSet)rr, maxOps, rng);
-                                    break;
-                                default:
-                                    debug.DebugException("Unrecognized IType in RuleSet");
-                                    break;
-                            }
-                        }
-                        break;
-                    case "sequence": //Execute each rule in a ruleset one time in order. When the end of the ruleset is reached, start over from the beginning.
-                        debug.DebugLine("Running as a sequence ruleset");
-                        while (ruleSet.LimitUnreached() && !ruleSet.IsFinishedInRound())
-                        {
-                            foreach (IRuleSet r in ruleSet.ChildRuleSet)
-                            {
-                                debug.DebugLine("Rule or ruleset \"" + r.Name() + "\"");
-                                switch (r.IType())
+                            case "Rule":
+                                debug.DebugLine("Running rule under current ruleset");
+                                switch (r.RType())
                                 {
-                                    case "Rule":
-                                        debug.DebugLine("Running rule under current ruleset");
-                                        switch (r.RType())
-                                        {
-                                            case "single":
-                                                RunRuleSingleOnce(r, space, maxOps, rng);
-                                                break;
-                                            case "parallel":
-                                                RunRuleParallel(r, space, maxOps, rng);
-                                                break;
-                                        }
+                                    case "single":
+                                        RunRuleSingleOnce(r, space, maxOps, rng);
                                         break;
-                                    case "RuleSet": //TODO: Should rulesets nested under a sequence ruleset be forced to only run once?
-                                        debug.DebugLine("Running nested ruleset under current sequence ruleset");
-                                        RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng);
-                                        break;
-                                    default:
-                                        debug.DebugException("Unrecognized IType in RuleSet");
+                                    case "parallel":
+                                        RunRuleParallel(r, space, maxOps, rng);
                                         break;
                                 }
-                            }
+                                break;
+                            case "RuleSet":
+                                debug.DebugLine("Running nested ruleset under current random ruleset");
+                                r.ResetFinishedInRound();
+                                RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng); //need to check if the this failed to change anything last time
+                                break;
+                            default:
+                                debug.DebugException("Unrecognized IType in RuleSet");
+                                break;
                         }
-                        break;
-                    case "retrace": //Execute the first rule until no matches are left. Then start checking the next rule, but at each cycle, check if the previous rules have a valid solution again.
-                        debug.DebugLine("Running as a retrace ruleset");
-                        int i = 0;
-                        while (i < ruleSet.ChildRuleSet.Count && ruleSet.LimitUnreached() && !ruleSet.IsFinishedInRound())
-                        {
-                            debug.DebugLine("i = " + i);
-                            IRuleSet r = ruleSet.ChildRuleSet[i];
-                            debug.DebugLine("Rule or ruleset \"" + r.Name() + "\"");
-                            bool b = false;
-                            switch (r.IType())
-                            {
-                                case "Rule":
-                                    debug.DebugLine("Running rule under current ruleset");
-                                    switch (r.RType())
-                                    {
-                                        case "single":
-                                            if (RunRuleSingleOnce(r, space, maxOps, rng)) { b = true; }
-                                            break;
-                                        case "parallel":
-                                            if (RunRuleParallel(r, space, maxOps, rng)) { b = true; }
-                                            break;
-                                    }
-                                    break;
-                                case "RuleSet":
-                                    debug.DebugLine("Running nested ruleset under current retrace ruleset");
-                                    string before = space.SpaceStateOutput;
-                                    RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng);
-                                    if (space.SpaceStateOutput != before) { b = true; }
-                                    break;
-                                default:
-                                    debug.DebugException("Unrecognized IType in RuleSet");
-                                    break;
-                            }
-                            if (b)
-                            {
-                                i = 0;
-                                continue;
-                            }
-                            i++;
-                        }
-                        break;
-                    case "series": //Execute a rule as many times as possible, then move on to the next rule.
-                        debug.DebugLine("Running as a series ruleset. There are " + ruleSet.ChildRuleSet.Count + " rules and rulesets.");
+                    }
+                    break;
+                case "sequence": //Execute each rule in a ruleset one time in order. When the end of the ruleset is reached, start over from the beginning.
+                    //TODO: Consider making sequences not execute further rules if one rule fails, or make a new RType for it
+                    debug.DebugLine("Running as a sequence ruleset");
+                    if (ruleSet.LimitUnreached() && !ruleSet.IsFinishedInRound())
+                    {
+                        ruleSet.IncrementUses();
                         foreach (IRuleSet r in ruleSet.ChildRuleSet)
                         {
                             debug.DebugLine("Rule or ruleset \"" + r.Name() + "\"");
@@ -187,36 +133,113 @@ namespace MJ_Proc_Gen
                                     switch (r.RType())
                                     {
                                         case "single":
-                                            RunRuleSingleRepeat(r, space, maxOps, rng);
+                                            RunRuleSingleOnce(r, space, maxOps, rng);
+                                            //if (!RunRuleSingleOnce(r, space, maxOps, rng)) { return false; }
                                             break;
                                         case "parallel":
                                             RunRuleParallel(r, space, maxOps, rng);
+                                            //if (!RunRuleParallel(r, space, maxOps, rng)) { return false; }
                                             break;
                                     }
                                     break;
-                                case "RuleSet":
-                                    debug.DebugLine("Running nested ruleset under current series ruleset");
+                                case "RuleSet": //TODO: Should rulesets nested under a sequence ruleset be forced to only run once?
+                                    debug.DebugLine("Running nested ruleset under current sequence ruleset");
+                                    r.ResetFinishedInRound();
                                     RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng);
+                                    //if (!RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng)) { return false; }
                                     break;
                                 default:
                                     debug.DebugException("Unrecognized IType in RuleSet");
                                     break;
                             }
                         }
-                        break;
-                    default:
-                        debug.DebugException("Invalid RuleSet Type \"" + ruleSet.RType() + "\"");
-                        break;
-                }
-                if (ruleSet.Repeat())
-                {
-                    RecursiveRunRuleSet(space, ruleSet, maxOps, rng);
-                }
+                    }
+                    break;
+                case "retrace": //Execute the first rule until no matches are left. Then start checking the next rule, but at each cycle, check if the previous rules have a valid solution again.
+                    debug.DebugLine("Running as a retrace ruleset");
+                    int i = 0;
+                    while (i < ruleSet.ChildRuleSet.Count && ruleSet.LimitUnreached() && !ruleSet.IsFinishedInRound())
+                    {
+                        ruleSet.IncrementUses();
+                        IRuleSet r = ruleSet.ChildRuleSet[i];
+                        debug.DebugLine("Rule or ruleset \"" + r.Name() + "\"");
+                        bool b = false;
+                        switch (r.IType())
+                        {
+                            case "Rule":
+                                debug.DebugLine("Running rule under current ruleset");
+                                switch (r.RType())
+                                {
+                                    case "single":
+                                        if (RunRuleSingleOnce(r, space, maxOps, rng)) { b = true; }
+                                        break;
+                                    case "parallel":
+                                        if (RunRuleParallel(r, space, maxOps, rng)) { b = true; }
+                                        break;
+                                }
+                                break;
+                            case "RuleSet": //TODO: Test ruleSets nested in retrace rulesets
+                                debug.DebugLine("Running nested ruleset under current retrace ruleset");
+                                string before = space.SpaceStateOutput;
+                                r.ResetFinishedInRound();
+                                RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng);
+                                if (space.SpaceStateOutput != before) { b = true; }
+                                break;
+                            default:
+                                debug.DebugException("Unrecognized IType in RuleSet");
+                                break;
+                        }
+                        if (b)
+                        {
+                            i = 0;
+                            continue;
+                        }
+                        i++;
+                    }
+                    break;
+                case "series": //Execute a rule as many times as possible, then move on to the next rule.
+                    debug.DebugLine("Running as a series ruleset. There are " + ruleSet.ChildRuleSet.Count + " rules and rulesets.");
+                    if (ruleSet.IsFinishedInRound()) { break; }
+                    foreach (IRuleSet r in ruleSet.ChildRuleSet)
+                    {
+                        debug.DebugLine("Rule or ruleset \"" + r.Name() + "\". Finished in round = " + ruleSet.IsFinishedInRound());
+                        ruleSet.IncrementUses();
+                        switch (r.IType())
+                        {
+                            case "Rule":
+                                debug.DebugLine("Running rule under current ruleset");
+                                switch (r.RType())
+                                {
+                                    case "single":
+                                        RunRuleSingleRepeat(r, space, maxOps, rng);
+                                        break;
+                                    case "parallel":
+                                        RunRuleParallel(r, space, maxOps, rng);
+                                        break;
+                                }
+                                break;
+                            case "RuleSet":
+                                debug.DebugLine("Running nested ruleset under current series ruleset");
+                                r.ResetFinishedInRound();
+                                RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng);
+                                break;
+                            default:
+                                debug.DebugException("Unrecognized IType in RuleSet");
+                                break;
+                        }
+                    }
+                    break;
+                default:
+                    debug.DebugException("Invalid RuleSet Type \"" + ruleSet.RType() + "\"");
+                    break;
             }
-            else
+            if (ruleSet.Repeat()) //rulesets with "repeat" set to true will always attempt to run again
             {
-                debug.DebugLine("Limit reached for ruleset \"" + ruleSet.Name() + "\"");
+                debug.DebugLine("Repeatting ruleset \"" + ruleSet.Name() + "\"");
+                //ruleSet.ResetFinishedInRound();
+                RecursiveRunRuleSet(space, ruleSet, maxOps, rng);
             }
+            return true;
         }
         private bool RunRuleSingleRepeat(IRuleSet r, Space space, int maxOps, Random rng)
         {
@@ -225,7 +248,7 @@ namespace MJ_Proc_Gen
                 RuleMatch rm = space.FindRuleMatches((Rule)r, rng, maxOps, false)[0];
                 bool ret = false;
                 if (rm.MatchFound) { ret = true; }
-                while (r.LimitUnreached() && space.OpCount < maxOps && rm.MatchFound)
+                while (r.LimitUnreached() && space.OpCount < maxOps && !r.IsFinishedInRound() && rm.MatchFound) //TODO: test cells nearby most recently changed cells (typ. all RunRule methods)
                 {
                     space.ApplyRuleMatch(rm);
                     rm = space.FindRuleMatches((Rule)r, rng, maxOps, false)[0];
@@ -254,13 +277,13 @@ namespace MJ_Proc_Gen
                 List<RuleMatch> rml = space.FindRuleMatches((Rule)r, rng, maxOps, true);
                 if (r.LimitUnreached() && space.OpCount < maxOps && rml[0].MatchFound)
                 {
-                    debug.DebugLine("Found " + rml.Count + " matches for parallel rule " + r.Name());
+                    string ruleName = rml[0].Rule.Name();
                     foreach (RuleMatch rm in rml)
                     {
                         space.IncrementOpCount();
                         space.ApplyRuleMatch(rm);
                     }
-                    space.AppendOutput();
+                    space.AppendOutput(ruleName);
                     return true;
                 }
             }
@@ -288,6 +311,8 @@ namespace MJ_Proc_Gen
         public Cell[,,] CellGrid { get { return cellGrid; } }
         private string spaceStateOutput;
         public string SpaceStateOutput { get { return spaceStateOutput; } }
+        private List<string> rulesRun;
+        public List<string> RulesRun { get { return rulesRun; } }
         private int outputFrameCount;
         public int OutputFrameCount { get { return outputFrameCount; } }
         public Space(string name, int sizeX, int sizeY, int sizeZ, string defaultState) //constructor if MJ_Main is NOT known
@@ -311,8 +336,9 @@ namespace MJ_Proc_Gen
                 }
             }
             spaceStateOutput = "";
+            rulesRun = new List<string>();
             outputFrameCount = 0;
-            AppendOutput();
+            AppendOutput("*defaultState*");
         }
 
         public Space(string name, int sizeX, int sizeY, int sizeZ, string defaultState, MJ_Main main) //constructor if MJ_Main is known
@@ -336,8 +362,9 @@ namespace MJ_Proc_Gen
                 }
             }
             spaceStateOutput = "";
+            rulesRun = new List<string>();
             outputFrameCount = 0;
-            AppendOutput();
+            AppendOutput("*defaultState*");
         }
         public List<RuleMatch> FindRuleMatches(Rule rule, Random rng, int maxOps, bool findAll) //Find locations in space where the given rule matches
         {
@@ -351,7 +378,7 @@ namespace MJ_Proc_Gen
             {
                 //IncrementOpCount();
                 Cell cc = cq.Dequeue();
-                main.debug.DebugLine("Checking rule \"" + rule.Name() + "\" at cell " + cc.X + "," + cc.Y + "," + cc.Z + ". Cells remaining for this rule queue: " + cq.Count);
+                //main.debug.DebugLine("Checking rule \"" + rule.Name() + "\" at cell " + cc.X + "," + cc.Y + "," + cc.Z + ". Cells remaining for this rule queue: " + cq.Count);
                 {
                     List<string> keys = new List<string>();
                     foreach (KeyValuePair<string, string[,,]> k in rule.StrIn)
@@ -362,7 +389,7 @@ namespace MJ_Proc_Gen
                     foreach (string key in keysRandom)
                     {
                         string[,,] strArray = rule.StrIn[key];
-                        main.debug.DebugLine("Trying symmetry \"" + key + "\"");
+                        //main.debug.DebugLine("Trying symmetry \"" + key + "\"");
                         int rx = strArray.GetLength(0); //prefix r (rule) = the dimensions of the ruleIn array
                         int ry = strArray.GetLength(1);
                         int rz = strArray.GetLength(2);
@@ -394,7 +421,7 @@ namespace MJ_Proc_Gen
                                                 RuleMatch rm = new RuleMatch(matchArray, rule, key);
                                                 if (!MatchOutputEqualsExistingState(rm))
                                                 {
-                                                    main.debug.DebugLine("Match found");
+                                                    //main.debug.DebugLine("Match found");
                                                     ruleMatches.Add(rm);
                                                     if (!findAll)
                                                     {
@@ -406,13 +433,13 @@ namespace MJ_Proc_Gen
                                         }
                                         else
                                         {
-                                            main.debug.DebugLine("Match failed: mismatch");
+                                            //main.debug.DebugLine("Match failed: mismatch");
                                             goto endMatchLoop;
                                         }
                                     }
                                     else
                                     {
-                                        main.debug.DebugLine("Match failed: out of bounds");
+                                        //main.debug.DebugLine("Match failed: out of bounds");
                                         goto endMatchLoop;
                                     }
                                 }
@@ -426,13 +453,17 @@ namespace MJ_Proc_Gen
             {
                 main.debug.DebugLine("Match not found");
                 ruleMatches.Add(new RuleMatch(rule));
-                rule.FinishedInRound();
+                rule.SetFinishedInRoundTrue();
+            }
+            else
+            {
+                main.debug.DebugLine("Found " + ruleMatches.Count + " matches for rule \"" + rule.Name() +"\"");
             }
             return ruleMatches;
         }
         public void ApplyRuleMatch(RuleMatch rm) //apply a matched rule to a region of space
         {
-            main.debug.DebugLine("ApplyRuleMatch() called. Operations count is " + OpCount);
+            //main.debug.DebugLine("Applying RuleMatch. Operations count is " + OpCount);
             for (int x = 0; x < rm.Region.GetLength(0); x++)
             {
                 for (int y = 0; y < rm.Region.GetLength(1); y++)
@@ -443,7 +474,7 @@ namespace MJ_Proc_Gen
                         {
                             Cell c = rm.Region[x, y, z];
                             c.SetCellState(rm.Rule.StrOut[rm.TransformKey][x, y, z]);
-                            main.debug.DebugLine("Cell " + c.X + ", " + c.Y + ", " + c.Z + " in \"" + Name + "\" state set to \"" + c.State + "\"");
+                            //main.debug.DebugLine("Cell " + c.X + ", " + c.Y + ", " + c.Z + " in \"" + Name + "\" state set to \"" + c.State + "\"");
                         }
                     }
                 }
@@ -452,7 +483,7 @@ namespace MJ_Proc_Gen
             if (rm.Rule.RType() != "parallel")
             {
                 IncrementOpCount();
-                AppendOutput();
+                AppendOutput(rm.Rule.Name());
             }
         }
         public bool MatchOutputEqualsExistingState(RuleMatch rm) //Checks whether applying the rulematch would result in a change to the space. We can use this to skip useless matches
@@ -473,7 +504,7 @@ namespace MJ_Proc_Gen
             //main.debug.DebugLine("Useless rule found");
             return true;
         }
-        public void AppendOutput() //Encodes the current states of all cells in this space to a string and appends it to spaceStateOutput
+        public void AppendOutput(string ruleName) //Encodes the current states of all cells in this space to a string and appends it to spaceStateOutput
         {
             outputFrameCount++;
             //main.debug.DebugLine("Output frame count: " +  outputFrameCount);
@@ -493,6 +524,7 @@ namespace MJ_Proc_Gen
                 if (z < SizeZ - 1) { s += "/"; }
             }
             spaceStateOutput += s;
+            rulesRun.Add(ruleName);
         }
         public void Reset() //resets the space to all default values
         {
@@ -504,7 +536,8 @@ namespace MJ_Proc_Gen
             }
             spaceStateOutput = "";
             outputFrameCount = 0;
-            AppendOutput();
+            rulesRun.Clear();
+            AppendOutput("*defaultState*");
         }
     }
     public interface IRuleSet //allows both Rules and RuleSets to exist in the same list, and contains some of their common properties
@@ -553,7 +586,7 @@ namespace MJ_Proc_Gen
         private List<IRuleSet> childrenRuleSets;
         public List<IRuleSet> ChildRuleSet { get { return childrenRuleSets; } set { childrenRuleSets = value; } }
         public bool IsRoot { get { return parentRuleSet == null; } }
-        public RuleSet(string name, List<IRuleSet> children, string ruleSetType, int limit, MJ_Main main) //constructor only for the root ruleset with a specified limit
+        public RuleSet(string name, List<IRuleSet> children, string ruleSetType, bool repeat, int limit, MJ_Main main) //constructor only for the root ruleset with a specified limit
         {
             this.main = main;
             iType = "RuleSet";
@@ -563,7 +596,7 @@ namespace MJ_Proc_Gen
             rType = ruleSetType;
             this.limit = limit;
             uses = 0;
-            repeat = false;
+            this.repeat = repeat;
         }
         public RuleSet(string name, RuleSet parent, List<IRuleSet> children, string ruleSetType, bool repeat, int limit, MJ_Main main) //constructor for all child rulesets with a specified limit
         {
@@ -626,7 +659,7 @@ namespace MJ_Proc_Gen
         }
         private bool finishedInRound;
         public bool IsFinishedInRound() { return finishedInRound; }
-        public void FinishedInRound() { finishedInRound = true; }
+        public void SetFinishedInRoundTrue() { finishedInRound = true; }
         public void ResetFinishedInRound() { finishedInRound = false; }
         private string name;
         public string Name() { return name; }
@@ -802,18 +835,18 @@ namespace MJ_Proc_Gen
     }
     public struct RuleMatch //conveys the necessary information to apply a matched rule
     {
-        public bool MatchFound { get; }
-        public Cell[,,] Region { get; }
-        public Rule Rule { get; }
-        public string TransformKey { get; }
-        public RuleMatch(Cell[,,] region, Rule rule, string transformKey) //use this constructor when a match is found
+        internal bool MatchFound { get; }
+        internal Cell[,,] Region { get; }
+        internal Rule Rule { get; }
+        internal string TransformKey { get; }
+        internal RuleMatch(Cell[,,] region, Rule rule, string transformKey) //use this constructor when a match is found
         {
             Region = region;
             Rule = rule;
             TransformKey = transformKey;
             MatchFound = true;
         }
-        public RuleMatch(Rule rule) //use this constructor when a match is not found
+        internal RuleMatch(Rule rule) //use this constructor when a match is not found
         {
             Region = null;
             this.Rule = rule;
@@ -877,9 +910,13 @@ namespace MJ_Proc_Gen
             }
         }
     }
-    public static class Shuffle //contains some methods to shuffle different collections
+    internal static class Shuffle //contains some methods to shuffle different collections
     {
-        public static List<T> RandomList<T>(List<T> input, Random rng)
+        internal static List<T> RandomList<T>(List<T> input, Random rng, List<Cell> prevChangedCells) //TODO: return a randomized list, cells neighboring previously run cells first 
+        {
+            throw new NotImplementedException("RandomList local first not implemented");
+        }
+        internal static List<T> RandomList<T>(List<T> input, Random rng)
         {
             T[] array = new T[input.Count];
             List<int> remainingIndicies = new List<int>();
@@ -897,11 +934,11 @@ namespace MJ_Proc_Gen
             }
             return new List<T>(array);
         }
-        public static Queue<T> RandomQueue<T>(List<T> input, Random rng) 
+        internal static Queue<T> RandomQueue<T>(List<T> input, Random rng) 
         {
             return new Queue<T>(RandomList(input, rng));
         }
-        public static Queue<T> RandomQueue<T>(T[,,] input, Random rng)
+        internal static Queue<T> RandomQueue<T>(T[,,] input, Random rng)
         {
             List<T> list = new List<T>();
             foreach(T t in input)
@@ -912,18 +949,18 @@ namespace MJ_Proc_Gen
             return new Queue<T>(randomList);
         }
     }
-    public static class RGX //use this for typical regex comparisons
+    internal static class RGX //use this for typical regex comparisons
     {
-        public static string AlphaNumeric = "^[a-zA-Z0-9]+$";
-        public static bool RIsMatch(string str, string rgx)
+        internal static string AlphaNumeric = "^[a-zA-Z0-9]+$";
+        internal static bool RIsMatch(string str, string rgx)
         {
             Regex r = new Regex(rgx);
             return r.IsMatch(str);
         }
     }
-    public static class XMLInterpreter //use for translating input xmls into rules and rulesets
+    internal static class XMLInterpreter //use for translating input xmls into rules and rulesets
     {
-        public static RuleSet ImportRuleSet(string path, MJ_Main main)
+        internal static RuleSet ImportRuleSet(string path, MJ_Main main)
         {
             XmlDocument doc = new XmlDocument(); //new xml doc
             doc.Load(path); //load xml from file
@@ -932,11 +969,16 @@ namespace MJ_Proc_Gen
             List<IRuleSet> ruleList = new List<IRuleSet>(); //create empty list to be filled with rules and rulesets
             main.debug.DebugLine("Importing ruleset " + name + " with " + rootNode.ChildNodes.Count + " children"); //report to debug log
             int limit = -1;
+            bool repeat = false;
             if (rootNode.Attributes["limit"] != null)
             {
                 limit = Convert.ToInt32(rootNode.Attributes["limit"].Value);
             }
-            RuleSet rootSet = new RuleSet(name, ruleList, rootNode.Attributes["type"].Value, limit, main); //create root ruleset from root node
+            if (rootNode.Attributes["repeat"] != null)
+            {
+                repeat = StrToBool(rootNode.Attributes["repeat"].Value);
+            }
+            RuleSet rootSet = new RuleSet(name, ruleList, rootNode.Attributes["type"].Value, repeat, limit, main); //create root ruleset from root node
             rootSet.ChildRuleSet = RecursiveImportRuleSet(rootSet, rootNode, main); //recursively populate child rules and rulesets
             main.debug.DebugLine("Imported ruleset " + name); //report to debug log
             return rootSet; //return complete ruleset
@@ -973,7 +1015,7 @@ namespace MJ_Proc_Gen
             }
             return ruleList;
         }
-        private static Rule RuleFromXmlNode(XmlNode node, RuleSet parent, MJ_Main main)
+        private static Rule RuleFromXmlNode(XmlNode node, RuleSet parent, MJ_Main main) //TODO: Clean this up. Add exceptions and default values
         {
             string ruleIn = null;
             string ruleOut = null;
