@@ -1,19 +1,19 @@
 <ruleset name="huts" type="series" repeat="f" limit="1">
-	<rule name="groundseed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">O/O/O/O/O/O=G/O/O/O/O/O</rule>
-	<rule name="groundroot" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">O/G=G/G</rule>
+	<rule name="groundseed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">AIR/AIR/AIR/AIR/AIR/AIR=BOX/AIR/AIR/AIR/AIR/AIR</rule>
+	<rule name="groundroot" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR/BOX=BOX/BOX</rule>
 	<ruleset name="spread1" type="series" repeat="t" limit="-1">
-		<rule name="groundspread" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">*,*,*;*,G,*;*,*,*=G,G,G;G,G,G;G,G,G</rule>
+		<rule name="groundspread" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">*,*,*;*,BOX,*;*,*,*=BOX,BOX,BOX;BOX,BOX,BOX;BOX,BOX,BOX</rule>
 	</ruleset>
-	<rule name="floorseed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="4">O/O=O/T</rule>
+	<rule name="floorseed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="4">AIR/AIR=AIR/BXS</rule>
 	<ruleset name="spread2" type="series" repeat="t" limit="4">
-		<rule name="floorspread" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">*,*,*;*,T,*;*,*,*=T,T,T;T,T,T;T,T,T</rule>
+		<rule name="floorspread" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">*,*,*;*,BXS,*;*,*,*=BXS,BXS,BXS;BXS,BXS,BXS;BXS,BXS,BXS</rule>
 	</ruleset>
-	<rule name="postseed1" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">O,O;O,O/T,O;O,O=S,O;O,O/T,O;O,O</rule>
-	<rule name="postseed2" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">O,O;O,O/O,T;O,O=O,S;O,O/O,T;O,O</rule>
-	<rule name="postseed3" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">O,O;O,O/O,O;T,O=O,O;S,O/O,O;T,O</rule>
-	<rule name="postseed4" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">O,O;O,O/O,O;O,T=O,O;O,S/O,O;O,T</rule>
+	<rule name="postseed1" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR,AIR;AIR,AIR/BXS,AIR;AIR,AIR=CYL,AIR;AIR,AIR/BXS,AIR;AIR,AIR</rule>
+	<rule name="postseed2" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR,AIR;AIR,AIR/AIR,BXS;AIR,AIR=AIR,CYL;AIR,AIR/AIR,BXS;AIR,AIR</rule>
+	<rule name="postseed3" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR,AIR;AIR,AIR/AIR,AIR;BXS,AIR=AIR,AIR;CYL,AIR/AIR,AIR;BXS,AIR</rule>
+	<rule name="postseed4" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR,AIR;AIR,AIR/AIR,AIR;AIR,BXS=AIR,AIR;AIR,CYL/AIR,AIR;AIR,BXS</rule>
 	<ruleset name="post" type="series" repeat="t" limit="-1">
-		<rule name="postdrop" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">O/S=S/S</rule>
+		<rule name="postdrop" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR/CYL=CYL/CYL</rule>
 	</ruleset>
-	<rule name="rooffinish" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">T=G</rule>
+	<rule name="rooffinish" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">BXS=BOX</rule>
 </ruleset>

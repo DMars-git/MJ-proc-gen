@@ -1,0 +1,183 @@
+<ruleset name="BrickBuilding" type="series" repeat="f" limit="-1">
+	<ruleset name="GroundPlane" type="series" repeat="t" limit="1">
+		<rule name="GroundSeed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">AIR=BOX</rule>
+		<rule name="GroundDrop" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR/BOX=BOX/AIR</rule>
+		<ruleset name="GroundSpread" type="series" repeat="t" limit="-1">
+			<rule name="GSpread" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">AIR,BOX=BOX,BOX</rule>
+		</ruleset>
+	</ruleset>
+	<ruleset name="FloorPlanes" type="sequence" repeat="f" limit="1">
+		<rule name="FloorPlaneTowerSeed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">AIR=BLU</rule>
+		<ruleset name="FloorPlaneTowerRuleset" type="series" repeat="t" limit="-1">
+			<rule name="FloorPlaneTower" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="t" limit="-1">BLU/AIR=BLU/BLU</rule>
+		</ruleset>
+		<ruleset name="FloorPlaneSeedRuleset" type="sequence" repeat="t" limit="5">
+			<rule name="FloorPlaneSeed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BLU/BLU/BLU/BLU/BLU=BLU/BLU/SPS/BLU/BLU</rule>
+		</ruleset>
+		<ruleset name="FloorPlaneSpread" type="series" repeat="t" limit="-1">
+			<rule name="FPSpread" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">AIR,SPS=SPS,SPS</rule>
+		</ruleset>
+		<rule name="FLoorPlaneBLUtoAir" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">BLU=AIR</rule>
+	</ruleset>
+	<rule name="FloorPlaneFindNonEdge" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">SPS,SPS,SPS;SPS,SPS,SPS;SPS,SPS,SPS=*,*,*;*,BXS,*;*,*,*</rule>
+	<ruleset name="Floors" type="sequence" repeat="t" limit="6">
+		<rule name="FloorSeed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BXS=PRP</rule>
+		<ruleset name="SpanX" type="random" repeat="f" limit="-1">
+			<ruleset name="SpanRight" type="sequence" repeat="f" limit="-1">
+				<rule name="StartRight" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">PRP,BXS=PRP,BLU</rule>
+				<ruleset name="GoRightRuleSet" type="series" repeat="f" limit="-1">
+					<rule name="GoRight" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BLU,BXS=BLU,BLU</rule>
+				</ruleset>
+				<rule name="RightPickEnd" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BLU=PRP</rule>
+				<ruleset name="GoRightReturnRuleSet" type="series" repeat="f" limit="-1">
+					<rule name="GoRightReturn" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BLU,PRP=PRP,PRP</rule>
+				</ruleset>
+				<rule name="RightBLUtoBXS" type="parallel" repeat="f" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BLU=BXS</rule>
+				<rule name="RightYSeed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">PRP=RED</rule>
+				<ruleset name="RightSpanY" type="sequence" repeat="f" limit="-1">
+					<ruleset name="RightPickBackForth" type="random" repeat="f" limit="-1">
+						<ruleset name="RightSpanBackRuleSet" type="sequence" repeat="f" limit="-1">
+							<rule name="RightStartBack" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">RED;BXS=RED;ORG</rule>
+							<ruleset name="RightGoBackRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="RightGoBack" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG;BXS=ORG;ORG</rule>
+							</ruleset>
+							<rule name="RightBackPickEnd" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG=YLW</rule>
+							<ruleset name="GoRightBackReturnRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="GoRightBackReturn" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG;YLW=YLW;YLW</rule>
+							</ruleset>
+							<rule name="RightBackYLWtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">YLW=GRN</rule>
+							<rule name="RightBackREDtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">RED=GRN</rule>
+							<rule name="RightBackPRPtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">PRP=GRN</rule>
+							<rule name="RightBackORGtoBXS" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG=BXS</rule>
+							<ruleset name="RightBackFillFloorRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="RightBackFillFloor" type="parallel" rotx="f" roty="f" rotz="f" refx="t" refy="f" refz="f" limit="-1">GRN,GRN;GRN,*=GRN,GRN;GRN,GRN</rule>
+							</ruleset>
+							<rule name="RightBackGRNtoBRK" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">GRN=BRK</rule>
+						</ruleset>
+						<ruleset name="RightSpanForthRuleSet" type="sequence" repeat="f" limit="-1">
+							<rule name="RightStartForth" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BXS;RED=ORG;RED</rule>
+							<ruleset name="RightGoForthRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="RightGoForth" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BXS;ORG=ORG;ORG</rule>
+							</ruleset>
+							<rule name="RightForthPickEnd" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG=YLW</rule>
+							<ruleset name="GoRightForthReturnRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="GoRightForthReturn" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">YLW;ORG=YLW;YLW</rule>
+							</ruleset>
+							<rule name="RightForthYLWtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">YLW=GRN</rule>
+							<rule name="RightForthREDtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">RED=GRN</rule>
+							<rule name="RightForthPRPtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">PRP=GRN</rule>
+							<rule name="RightForthORGtoBXS" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG=BXS</rule>
+							<ruleset name="RightForthFillFloorRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="RightForthFillFloor" type="parallel" rotx="f" roty="f" rotz="f" refx="t" refy="f" refz="f" limit="-1">GRN,*;GRN,GRN=GRN,GRN;GRN,GRN</rule>
+							</ruleset>
+							<rule name="RightForthGRNtoBRK" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">GRN=BRK</rule>
+						</ruleset>
+					</ruleset>
+				</ruleset>
+			</ruleset>
+			<ruleset name="SpanLeft" type="sequence" repeat="f" limit="-1">
+				<rule name="StartLeft" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BXS,PRP=BLU,PRP</rule>
+				<ruleset name="GoLeftRuleSet" type="series" repeat="f" limit="-1">
+					<rule name="GoLeft" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BXS,BLU=BLU,BLU</rule>
+				</ruleset>
+				<rule name="LeftPickEnd" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BLU=PRP</rule>
+				<ruleset name="GoLeftReturnRuleSet" type="series" repeat="f" limit="-1">
+					<rule name="GoLeftReturn" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">PRP,BLU=PRP,PRP</rule>
+				</ruleset>
+				<rule name="LeftBLUtoBXS" type="parallel" repeat="f" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BLU=BXS</rule>
+				<rule name="LeftYSeed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">PRP=RED</rule>
+				<ruleset name="LeftSpanY" type="sequence" repeat="f" limit="-1">
+					<ruleset name="LeftPickBackForth" type="random" repeat="f" limit="-1">
+						<ruleset name="LeftSpanBackRuleSet" type="sequence" repeat="f" limit="-1">
+							<rule name="LeftStartBack" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">RED;BXS=RED;ORG</rule>
+							<ruleset name="LeftGoBackRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="LeftGoBack" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG;BXS=ORG;ORG</rule>
+							</ruleset>
+							<rule name="LeftBackPickEnd" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG=YLW</rule>
+							<ruleset name="GoLeftBackReturnRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="GoLeftBackReturn" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG;YLW=YLW;YLW</rule>
+							</ruleset>
+							<rule name="LeftBackYLWtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">YLW=GRN</rule>
+							<rule name="LeftBackREDtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">RED=GRN</rule>
+							<rule name="LeftBackPRPtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">PRP=GRN</rule>
+							<rule name="LeftBackORGtoBXS" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG=BXS</rule>
+							<ruleset name="LeftBackFillFloorRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="LeftBackFillFloor" type="parallel" rotx="f" roty="f" rotz="f" refx="t" refy="f" refz="f" limit="-1">GRN,GRN;GRN,*=GRN,GRN;GRN,GRN</rule>
+							</ruleset>
+							<rule name="LeftBackGRNtoBRK" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">GRN=BRK</rule>
+						</ruleset>
+						<ruleset name="LeftSpanForthRuleSet" type="sequence" repeat="f" limit="-1">
+							<rule name="LeftStartForth" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BXS;RED=ORG;RED</rule>
+							<ruleset name="LeftGoForthRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="LeftGoForth" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BXS;ORG=ORG;ORG</rule>
+							</ruleset>
+							<rule name="LeftForthPickEnd" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG=YLW</rule>
+							<ruleset name="GoLeftForthReturnRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="GoLeftForthReturn" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">YLW;ORG=YLW;YLW</rule>
+							</ruleset>
+							<rule name="LeftForthYLWtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">YLW=GRN</rule>
+							<rule name="LeftForthREDtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">RED=GRN</rule>
+							<rule name="LeftForthPRPtoGRN" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">PRP=GRN</rule>
+							<rule name="LeftForthORGtoBXS" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">ORG=BXS</rule>
+							<ruleset name="LeftForthFillFloorRuleSet" type="series" repeat="t" limit="-1">
+								<rule name="LeftForthFillFloor" type="parallel" rotx="f" roty="f" rotz="f" refx="t" refy="f" refz="f" limit="-1">GRN,*;GRN,GRN=GRN,GRN;GRN,GRN</rule>
+							</ruleset>
+							<rule name="LeftForthGRNtoBRK" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">GRN=BRK</rule>
+						</ruleset>
+					</ruleset>
+				</ruleset>
+			</ruleset>
+		</ruleset>
+	</ruleset>
+	<ruleset name="DropFloorRuleSet" type="sequence" repeat="t" limit="-1">
+		<ruleset name="DropBRKRuleSet" type="series" repeat="t" limit="-1">
+			<rule name="DropBRK" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR/BRK=CYL/BRK</rule>
+			<rule name="DropCYL" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR/CYL=CYL/CYL</rule>
+		</ruleset>
+		<rule name="BRKFloorBelow" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BXS/CYL=BRK/CYL</rule>
+	</ruleset>
+	<rule name="DropFloorCYLtoAIR" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">CYL=AIR</rule>
+	<ruleset name="Columns" type="sequence" repeat="f" limit="-1">
+		<rule name="ColumnSPStoBXS" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">SPS=BXS</rule>
+		<rule name="NonEdgeFloor" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BRK,BRK,BRK;BRK,BRK,BRK;BRK,BRK,BRK=*,*,*;*,RED,*;*,*,*</rule>
+		<rule name="OutsideCorner" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">BRK,BXS;BXS,BXS=BLU,*;*,*</rule>
+		<rule name="InsideCorner1" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">BRK,BRK;BXS,BRK=*,BLU;*,*</rule>
+		<rule name="InsideCorner2a" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">BRK,BRK;BXS,BLU=*,BLU;*,*</rule>
+		<rule name="InsideCorner2b" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">BRK,BRK;BLU,BXS=BLU,*;*,*</rule>
+		<rule name="InsideCorner3" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">BLU,BRK;BXS,BLU=*,BLU;*,*</rule>
+		<ruleset name="ColumnDropRuleSet" type="series" repeat="t" limit="-1">
+			<rule name="ColumnDrop" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">*/BLU=BLU/BLU</rule>
+		</ruleset>
+	</ruleset>
+	<ruleset name="Windows" type="sequence" repeat="f" limit="-1">
+		<rule name="ValidWindowLocations" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">BRK,BXS=PRP,BXS</rule>
+		<ruleset name="WindowsPickXorY" type="random" repeat="t" limit="-1">
+			<ruleset name="WindowsX" type="sequence" repeat="f" limit="-1">
+				<rule name="WindowsXTopCorner" type="single" rotx="f" roty="f" rotz="f" refx="t" refy="f" refz="f" limit="-1">BLU,AIR/BLU,PRP=*,WDX/*,*</rule>
+				<ruleset name="WindowsTopEdgeXRuleset" type="series" repeat="f" limit="-1">
+					<rule name="WindowsTopEdgeX" type="single" rotx="f" roty="f" rotz="f" refx="t" refy="f" refz="f" limit="-1">WDX,AIR/PRP,PRP=WDX,WDX/PRP,PRP</rule>
+				</ruleset>
+				<rule name="WindowsAddCornersX" type="parallel" rotx="f" roty="f" rotz="f" refx="t" refy="f" refz="f" limit="-1">WDX,WDY=WDX,YLW</rule>
+				<rule name="WindowsRemoveOpenEdgesX" type="parallel" rotx="f" roty="f" rotz="f" refx="t" refy="f" refz="f" limit="-1">WDX,AIR=AIR,AIR</rule>
+			</ruleset>
+			<ruleset name="WindowsY" type="sequence" repeat="f" limit="-1">
+				<rule name="WindowsYTopCorner" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="t" refz="f" limit="-1">BLU;AIR/BLU;PRP=*;WDY/*;*</rule>
+				<ruleset name="WindowsTopEdgeYRuleset" type="series" repeat="f" limit="-1">
+					<rule name="WindowsTopEdgeY" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="t" refz="f" limit="-1">WDY;AIR/PRP;PRP=WDY;WDY/PRP;PRP</rule>
+				</ruleset>
+				<rule name="WindowsAddCornersY" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="t" refz="f" limit="-1">WDY;WDX=WDY;YLW</rule>
+				<rule name="WindowsRemoveOpenEdgesY" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="t" refz="f" limit="-1">WDY;AIR=AIR;AIR</rule>
+			</ruleset>
+		</ruleset>
+		<rule name="FinalBXStoAIR" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BXS=AIR</rule>
+		<ruleset name="WindowsDrop" type="series" repeat="t" limit="-1">
+			<rule name="WindowsXDrop" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR/WDX=WDX/WDX</rule>
+			<rule name="WindowsYDrop" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR/WDY=WDY/WDY</rule>
+			<rule name="WindowsCornerDrop" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">AIR/YLW=YLW/YLW</rule>
+		</ruleset>
+	</ruleset>
+	<rule name="FinalREDtoBRK" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">RED=BRK</rule>
+	<rule name="FinalYLWtoBRK" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">YLW=BRK</rule>
+	<rule name="FinalBLUtoBRK" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BLU=BRK</rule>
+	<rule name="FinalPRPtoBRK" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">PRP=BRK</rule>
+</ruleset>
