@@ -1,11 +1,7 @@
 <ruleset name="walkerRetrace" type="series" repeat="f" limit="-1">
-	<rule name="seed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">AIR=BXS</rule>
-	<ruleset name="grid" type="series" repeat="t" limit="-1">
-		<rule name="gridpoint" type="parallel" rotx="t" roty="t" rotz="t" refx="f" refy="f" refz="f" limit="-1">BXS,AIR,AIR=BXS,AIR,BXS</rule>
-	</ruleset>
-	<rule name="walkseed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">BXS=SPH</rule>
-	<ruleset name="walkbacktrack" type="retrace" repeat="t" limit="-1">
-		<rule name="walk" type="single" rotx="t" roty="t" rotz="t" refx="f" refy="f" refz="f" limit="-1">SPH,AIR,BXS=BOX,BOX,SPH</rule>
+	<rule name="seed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="1">AIR=SPH</rule>
+	<ruleset name="walkbacktrack" type="retrace" repeat="f" limit="-1">
+		<rule name="walk" type="single" rotx="t" roty="t" rotz="t" refx="f" refy="f" refz="f" limit="-1">SPH,AIR,AIR=BOX,BOX,SPH</rule>
 		<rule name="backtrack" type="single" rotx="t" roty="t" rotz="t" refx="f" refy="f" refz="f" limit="-1">BOX,BOX,SPH=SPH,BXV,BXV</rule>
 	</ruleset>
 	<rule name="convertH" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" repeat="f" limit="1">BXV=BOX</rule>

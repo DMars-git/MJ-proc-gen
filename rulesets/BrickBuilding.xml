@@ -17,10 +17,10 @@
 		<ruleset name="FloorPlaneSpread" type="series" repeat="t" limit="-1">
 			<rule name="FPSpread" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">AIR,SPS=SPS,SPS</rule>
 		</ruleset>
-		<rule name="FLoorPlaneBLUtoAir" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">BLU=AIR</rule>
+		<rule name="FloorPlaneBLUtoAir" type="parallel" rotx="f" roty="f" rotz="t" refx="f" refy="f" refz="f" limit="-1">BLU=AIR</rule>
 	</ruleset>
 	<rule name="FloorPlaneFindNonEdge" type="parallel" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">SPS,SPS,SPS;SPS,SPS,SPS;SPS,SPS,SPS=*,*,*;*,BXS,*;*,*,*</rule>
-	<ruleset name="Floors" type="sequence" repeat="t" limit="6">
+	<ruleset name="Floors" type="sequence" repeat="t" limit="5">
 		<rule name="FloorSeed" type="single" rotx="f" roty="f" rotz="f" refx="f" refy="f" refz="f" limit="-1">BXS=PRP</rule>
 		<ruleset name="SpanX" type="random" repeat="f" limit="-1">
 			<ruleset name="SpanRight" type="sequence" repeat="f" limit="-1">
