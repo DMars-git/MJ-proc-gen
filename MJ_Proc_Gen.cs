@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
+using System.Diagnostics;
 
 namespace MJ_Proc_Gen
 {
@@ -27,7 +29,7 @@ namespace MJ_Proc_Gen
                 spaces.Remove(name);
             }
             spaces.Add(name, new Space(name, sizeX, sizeY, sizeZ, defaultState, this));
-            debug.DebugLine("Added space \"" + name + "\" to list.");
+            debug.DebugLine("Added space \"" + name + "\" to list. Size: x: " + sizeX + ", y: " + sizeY + ", z: " + sizeZ);
         }
         public void AddSpace(Space space) //call from front end to add an already constructed space
         {
@@ -37,7 +39,7 @@ namespace MJ_Proc_Gen
             }
             spaces.Add(space.Name, space);
             space.SetMain(this);
-            debug.DebugLine("Added space \"" + space.Name + "\" to list. Size: x: \"" + space.SizeX + "\", y: \"" + space.SizeY + "\", z: \"" + space.SizeZ);
+            debug.DebugLine("Added space \"" + space.Name + "\" to list. Size: x: " + space.SizeX + ", y: " + space.SizeY + ", z: " + space.SizeZ);
         }
         public void AddRuleSet(string path) //call from front end to add a ruleset from an .xml file
         {
@@ -46,16 +48,18 @@ namespace MJ_Proc_Gen
             ruleSets.Add(name, set);
             debug.DebugLine("Added ruleset \"" + name + "\" to list.");
         }
-        public void RunMJ (string spaceName, string ruleSetName, int maxOperations, int seed) //call from front end to run a ruleset on a space
+        public void RunMJ(string spaceName, string ruleSetName, int maxOperations, int seed) //call from front end to run a ruleset on a space
         {
             Space space = spaces[spaceName];
             RuleSet rootRuleSet = ruleSets[ruleSetName];
+            Stopwatch stopwatch = new Stopwatch();
             debug.DebugLine("Begin RunMJ(). Running ruleset \"" + rootRuleSet.Name() + "\" on \"" + space.Name + "\"");
+            stopwatch.Start();
             space.Reset();
             rootRuleSet.ResetUses();
             Random rng = new Random(seed);
             RecursiveRunRuleSet(space, rootRuleSet, maxOperations, rng);
-            debug.DebugLine("End RunMJ()");
+            debug.DebugLine("End RunMJ(). Total time = " + stopwatch.ElapsedMilliseconds/1000);
         }
         private bool RecursiveRunRuleSet(Space space, RuleSet ruleSet, int maxOps, Random rng)
         {
@@ -180,10 +184,10 @@ namespace MJ_Proc_Gen
                                 break;
                             case "RuleSet": //TODO: Test ruleSets nested in retrace rulesets
                                 debug.DebugLine("Running nested ruleset under current retrace ruleset");
-                                string before = space.SpaceStateOutput;
+                                int prevFrameCount = space.OutputFrameCount;
                                 r.ResetFinishedInRound();
                                 RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng);
-                                if (space.SpaceStateOutput != before) { b = true; }
+                                if (space.OutputFrameCount != prevFrameCount) { b = true; }
                                 break;
                             default:
                                 debug.DebugException("Unrecognized IType in RuleSet");
@@ -280,7 +284,7 @@ namespace MJ_Proc_Gen
                     string ruleName = rml[0].Rule.Name();
                     foreach (RuleMatch rm in rml)
                     {
-                        space.IncrementOpCount();
+                        //space.IncrementOpCount();
                         space.ApplyRuleMatch(rm);
                     }
                     space.AppendOutput(ruleName);
@@ -301,7 +305,7 @@ namespace MJ_Proc_Gen
         private int sizeX, sizeY, sizeZ;
         public int SizeX { get { return sizeX; } }
         public int SizeY { get { return sizeY; } }
-        public int SizeZ {  get { return sizeZ; } }
+        public int SizeZ { get { return sizeZ; } }
         private string defaultState; //TODO: consider also accepting a heterogeneous cellGrid as the default state
         public string DefaultState { get { return defaultState; } }
         private int opCount;
@@ -315,6 +319,7 @@ namespace MJ_Proc_Gen
         public List<string> RulesRun { get { return rulesRun; } }
         private int outputFrameCount;
         public int OutputFrameCount { get { return outputFrameCount; } }
+        internal Dictionary<string, List<Cell>> cellsOfState;
         public Space(string name, int sizeX, int sizeY, int sizeZ, string defaultState) //constructor if MJ_Main is NOT known
         {
             main = null;
@@ -324,6 +329,7 @@ namespace MJ_Proc_Gen
             this.sizeZ = sizeZ;
             this.defaultState = defaultState;
             opCount = 0;
+            cellsOfState = new Dictionary<string, List<Cell>>();
             cellGrid = new Cell[sizeX, sizeY, sizeZ];
             for (int x = 0; x < sizeX; x++)
             {
@@ -340,7 +346,6 @@ namespace MJ_Proc_Gen
             outputFrameCount = 0;
             AppendOutput("*defaultState*");
         }
-
         public Space(string name, int sizeX, int sizeY, int sizeZ, string defaultState, MJ_Main main) //constructor if MJ_Main is known
         {
             this.main = main;
@@ -350,6 +355,7 @@ namespace MJ_Proc_Gen
             this.sizeZ = sizeZ;
             this.defaultState = defaultState;
             opCount = 0;
+            cellsOfState = new Dictionary<string, List<Cell>>();
             cellGrid = new Cell[sizeX, sizeY, sizeZ];
             for (int x = 0; x < sizeX; x++)
             {
@@ -366,86 +372,124 @@ namespace MJ_Proc_Gen
             outputFrameCount = 0;
             AppendOutput("*defaultState*");
         }
-        public List<RuleMatch> FindRuleMatches(Rule rule, Random rng, int maxOps, bool findAll) //Find locations in space where the given rule matches
+        internal void UpdateCellsOfState(string oldKey, string newKey, Cell cell)
+        {
+            if (main != null) { main.debug.DebugLine("Updating cell " + cell.X + ", " + cell.Y + ", " + cell.Z); }
+            if (oldKey == newKey) { return; }
+            if (oldKey != null && oldKey != "*" && cellsOfState.ContainsKey(oldKey))
+            {
+                if (main != null) { main.debug.DebugLine("old key = " + oldKey); }
+                cellsOfState[oldKey].Remove(cell);
+                if (cellsOfState[oldKey].Count == 0)
+                {
+                    if (main != null) { main.debug.DebugLine("removing list of " + oldKey); }
+                    cellsOfState.Remove(oldKey);
+                }
+            }
+            if (newKey == "*") { return; }
+            if (!cellsOfState.ContainsKey(newKey))
+            {
+                if (main != null) { main.debug.DebugLine("adding list of " + newKey); }
+                cellsOfState.Add(newKey, new List<Cell>());
+            }
+            if (main != null) { main.debug.DebugLine("adding cell to list of " + newKey); }
+            cellsOfState[newKey].Add(cell);
+        }
+        internal void AddCellToWildcardList(Cell c)
+        {
+            if (!cellsOfState.ContainsKey("*"))
+            {
+                cellsOfState.Add("*", new List<Cell>());
+            }
+            if (!cellsOfState["*"].Contains(c))
+            {
+                cellsOfState["*"].Add(c);
+            }
+        }
+        internal List<RuleMatch> FindRuleMatches(Rule rule, Random rng, int maxOps, bool findAll) //Find locations in space where the given rule matches
         {
             IncrementOpCount();
-            List<RuleMatch> ruleMatches= new List<RuleMatch>();
+            List<RuleMatch> ruleMatches = new List<RuleMatch>();
             main.debug.DebugLine("FindRuleMatches() called. Checking if rule \"" + rule.Name() + "\" has a match. Operations count is " + OpCount);
             //create a randomly ordered queue of cells in space
-            Queue<Cell> cq = Shuffle.RandomQueue<Cell>(cellGrid, rng);
+            Queue<Cell> cq = EnqueueRelevantCells(rule, rng);
+            //Queue<Cell> cq = Shuffle.RandomQueue<Cell>(cellGrid, rng); //TODO Consider making a purely random search of the whole space an option
             //for each cell, check the rule and all its rotations
-            while (cq.Count > 0 && opCount < maxOps)
+            if (cq != null)
             {
-                //IncrementOpCount();
-                Cell cc = cq.Dequeue();
-                //main.debug.DebugLine("Checking rule \"" + rule.Name() + "\" at cell " + cc.X + "," + cc.Y + "," + cc.Z + ". Cells remaining for this rule queue: " + cq.Count);
+                while (cq.Count > 0 && opCount < maxOps)
                 {
-                    List<string> keys = new List<string>();
-                    foreach (KeyValuePair<string, string[,,]> k in rule.StrIn)
+                    //IncrementOpCount();
+                    Cell cc = cq.Dequeue();
+                    //main.debug.DebugLine("Checking rule \"" + rule.Name() + "\" at cell " + cc.X + "," + cc.Y + "," + cc.Z + ". Cells remaining for this rule queue: " + cq.Count);
                     {
-                        keys.Add(k.Key);
-                    }
-                    List<string> keysRandom = Shuffle.RandomList(keys, rng);
-                    foreach (string key in keysRandom)
-                    {
-                        string[,,] strArray = rule.StrIn[key];
-                        //main.debug.DebugLine("Trying symmetry \"" + key + "\"");
-                        int rx = strArray.GetLength(0); //prefix r (rule) = the dimensions of the ruleIn array
-                        int ry = strArray.GetLength(1);
-                        int rz = strArray.GetLength(2);
-                        int maxCellMatches = rx * ry * rz;
-                        int cellMatches = 0;
-                        Cell[,,] matchArray = new Cell[rx, ry, rz];
-                        for (int x = 0; x < rx; x++)
+                        List<string> keys = new List<string>();
+                        foreach (KeyValuePair<string, string[,,]> k in rule.StrIn)
                         {
-                            for (int y = 0; y < ry; y++)
+                            keys.Add(k.Key);
+                        }
+                        List<string> keysRandom = Shuffle.RandomList(keys, rng);
+                        foreach (string key in keysRandom)
+                        {
+                            string[,,] strArray = rule.StrIn[key];
+                            //main.debug.DebugLine("Trying symmetry \"" + key + "\"");
+                            int rx = strArray.GetLength(0); //prefix r (rule) = the dimensions of the ruleIn array
+                            int ry = strArray.GetLength(1);
+                            int rz = strArray.GetLength(2);
+                            int maxCellMatches = rx * ry * rz;
+                            int cellMatches = 0;
+                            Cell[,,] matchArray = new Cell[rx, ry, rz];
+                            for (int x = 0; x < rx; x++)
                             {
-                                for (int z = 0; z < rz; z++)
+                                for (int y = 0; y < ry; y++)
                                 {
-                                    int ccx = cc.X + x;
-                                    int ccy = cc.Y + y;
-                                    int ccz = cc.Z + z;
-                                    bool xInRange = ccx >= 0 && ccx < SizeX;
-                                    bool yInRange = ccy >= 0 && ccy < SizeY;
-                                    bool zInRange = ccz >= 0 && ccz < SizeZ;
-                                    if (xInRange && yInRange && zInRange)
+                                    for (int z = 0; z < rz; z++)
                                     {
-                                        //main.debug.DebugLine("Cell state at cell " + ccx + "," + ccy + "," + ccz + " is \"" + CellGrid[ccx, ccy, ccz].State + "\" and corresponding rule state at " + px + "," + py + "," + pz + " is \"" + ruleIn.Value[px, py, pz] + "\"");
-                                        if (CellGrid[ccx, ccy, ccz].State == strArray[x, y, z] || strArray[x, y, z] == "*")
+                                        int ccx = cc.X + x;
+                                        int ccy = cc.Y + y;
+                                        int ccz = cc.Z + z;
+                                        bool xInRange = ccx >= 0 && ccx < SizeX;
+                                        bool yInRange = ccy >= 0 && ccy < SizeY;
+                                        bool zInRange = ccz >= 0 && ccz < SizeZ;
+                                        if (xInRange && yInRange && zInRange)
                                         {
-                                            cellMatches++;
-                                            matchArray[x, y, z] = CellGrid[ccx, ccy, ccz];
-                                            //main.debug.DebugLine("cellMatches = " + cellMatches + " and maxCellMatches = " + maxCellMatches);
-                                            if (cellMatches == maxCellMatches)
+                                            //main.debug.DebugLine("Cell state at cell " + ccx + "," + ccy + "," + ccz + " is \"" + CellGrid[ccx, ccy, ccz].State + "\" and corresponding rule state at " + px + "," + py + "," + pz + " is \"" + ruleIn.Value[px, py, pz] + "\"");
+                                            if (CellGrid[ccx, ccy, ccz].State == strArray[x, y, z] || strArray[x, y, z] == "*")
                                             {
-                                                RuleMatch rm = new RuleMatch(matchArray, rule, key);
-                                                if (!MatchOutputEqualsExistingState(rm))
+                                                cellMatches++;
+                                                matchArray[x, y, z] = CellGrid[ccx, ccy, ccz];
+                                                //main.debug.DebugLine("cellMatches = " + cellMatches + " and maxCellMatches = " + maxCellMatches);
+                                                if (cellMatches == maxCellMatches)
                                                 {
-                                                    //main.debug.DebugLine("Match found");
-                                                    ruleMatches.Add(rm);
-                                                    if (!findAll)
+                                                    RuleMatch rm = new RuleMatch(matchArray, rule, key);
+                                                    if (!MatchOutputEqualsExistingState(rm))
                                                     {
-                                                        return ruleMatches;
+                                                        //main.debug.DebugLine("Match found");
+                                                        ruleMatches.Add(rm);
+                                                        if (!findAll)
+                                                        {
+                                                            return ruleMatches;
+                                                        }
                                                     }
                                                 }
+                                                else { continue; }
                                             }
-                                            else { continue; }
+                                            else
+                                            {
+                                                //main.debug.DebugLine("Match failed: mismatch");
+                                                goto endMatchLoop;
+                                            }
                                         }
                                         else
                                         {
-                                            //main.debug.DebugLine("Match failed: mismatch");
+                                            //main.debug.DebugLine("Match failed: out of bounds");
                                             goto endMatchLoop;
                                         }
                                     }
-                                    else
-                                    {
-                                        //main.debug.DebugLine("Match failed: out of bounds");
-                                        goto endMatchLoop;
-                                    }
                                 }
                             }
+                        endMatchLoop: cellMatches = 0;
                         }
-                    endMatchLoop: cellMatches = 0;
                     }
                 }
             }
@@ -457,24 +501,133 @@ namespace MJ_Proc_Gen
             }
             else
             {
-                main.debug.DebugLine("Found " + ruleMatches.Count + " matches for rule \"" + rule.Name() +"\"");
+                main.debug.DebugLine("Found " + ruleMatches.Count + " matches for rule \"" + rule.Name() + "\"");
             }
             return ruleMatches;
         }
-        public void ApplyRuleMatch(RuleMatch rm) //apply a matched rule to a region of space
+        internal Queue<Cell> EnqueueRelevantCells(Rule rule, Random rng)
         {
-            //main.debug.DebugLine("Applying RuleMatch. Operations count is " + OpCount);
-            for (int x = 0; x < rm.Region.GetLength(0); x++)
+            //Find the smallest list of cells to search in cellsOfState
+            main.debug.DebugLine("Enqueueing relevant cells");
+            int smallestListSize = 0;
+            string searchState = "*";
+            foreach (string s in rule.RuleInStates)
             {
-                for (int y = 0; y < rm.Region.GetLength(1); y++)
+                if (cellsOfState.ContainsKey(s))
                 {
-                    for (int z = 0; z < rm.Region.GetLength(2); z++)
+                    main.debug.DebugLine("List of " + s + " cells has " + cellsOfState[s].Count + " items ");
+                    if (smallestListSize == 0)
                     {
-                        if (rm.Rule.StrOut[rm.TransformKey][x, y, z] != "*")
+                        smallestListSize = cellsOfState[s].Count;
+                        searchState = s;
+                    }
+                    else if (cellsOfState[s].Count < smallestListSize)
+                    {
+                        smallestListSize = cellsOfState[s].Count;
+                        searchState = s;
+                    }
+                }
+            }
+            main.debug.DebugLine("Using list of " + searchState + " cells with " + cellsOfState[searchState].Count + " items as base list");
+            if (smallestListSize == 0)
+            {
+                main.debug.DebugLine("No list of cells for any state in rule " + rule.Name() + " found in dictionary");
+                return null;
+            }
+            List<Cell> baseCellList = cellsOfState[searchState];
+            if (rule.RuleInStates.Count > 0)
+            {
+                main.debug.DebugLine("RuleIn states count = " + rule.RuleInStates.Count);
+                for (int i = 1; i < rule.RuleInStates.Count; i++)
+                {
+                    if (cellsOfState.ContainsKey(rule.RuleInStates[i]) && cellsOfState[rule.RuleInStates[i]].Count < smallestListSize)
+                    {
+                        smallestListSize = cellsOfState[rule.RuleInStates[i]].Count;
+                        baseCellList = cellsOfState[rule.RuleInStates[i]];
+                    }
+                }
+            }
+            //find dimensions of area to search around cells in the target state
+            //List<int[]> searchDimensions = new List<int[]>();
+            int xMin = rule.StrIn["base"].GetLength(0);
+            int xMax = rule.StrIn["base"].GetLength(0);
+            int yMin = rule.StrIn["base"].GetLength(1);
+            int yMax = rule.StrIn["base"].GetLength(1);
+            int zMin = rule.StrIn["base"].GetLength(2);
+            int zMax = rule.StrIn["base"].GetLength(2);
+            if (rule.StrIn.ContainsKey("rotx90"))
+            {
+                yMin = Math.Min(yMin, rule.StrIn["rotx90"].GetLength(1));
+                yMax = Math.Max(yMax, rule.StrIn["rotx90"].GetLength(1));
+                zMin = Math.Min(zMin, rule.StrIn["rotx90"].GetLength(2));
+                zMax = Math.Max(zMax, rule.StrIn["rotx90"].GetLength(2));
+            }
+            if (rule.StrIn.ContainsKey("roty90"))
+            {
+                xMin = Math.Min(xMin, rule.StrIn["roty90"].GetLength(0));
+                xMax = Math.Max(xMax, rule.StrIn["roty90"].GetLength(0));
+                zMin = Math.Min(zMin, rule.StrIn["roty90"].GetLength(2));
+                zMax = Math.Max(zMax, rule.StrIn["roty90"].GetLength(2));
+            }
+            if (rule.StrIn.ContainsKey("rotz90"))
+            {
+                xMin = Math.Min(xMin, rule.StrIn["rotz90"].GetLength(0));
+                xMax = Math.Max(xMax, rule.StrIn["rotz90"].GetLength(0));
+                yMin = Math.Min(yMin, rule.StrIn["rotz90"].GetLength(1));
+                yMax = Math.Max(yMax, rule.StrIn["rotz90"].GetLength(1));
+            }
+            //Find all cells to search. These should be cells in baseCellList and cells within the cell dimensions (but only below the base list cells)
+            main.debug.DebugLine("Area to search based on rule size is x: " + xMin + " min - " + xMax + " max, y: " + yMin + " min - " + yMax + " max, z: " + zMin + " min - " + zMax + " max");
+            List<Cell> completeCellList = new List<Cell>();
+            foreach (Cell bCell in baseCellList)
+            {
+                for (int x = 0; x < xMax; x++)
+                {
+                    if (bCell.X - x >= 0) //range check x
+                    {
+                        for (int y = 0; y < yMax; y++)
                         {
-                            Cell c = rm.Region[x, y, z];
+                            if (bCell.Y - y >= 0) //range check y
+                            {
+                                for (int z = 0; z < zMax; z++)
+                                {
+                                    if (bCell.Z - z >= 0) //range check z
+                                    {
+                                        int cx = bCell.X - x;
+                                        int cy = bCell.Y - y;
+                                        int cz = bCell.Z - z;
+                                        if (x > xMin && (y > yMin || z > zMin)) { continue; }
+                                        if (y > yMin && (x > xMin || z > zMin)) { continue; }
+                                        if (z > zMin && (x > xMin || y > yMin)) { continue; }
+                                        Cell c = cellGrid[cx, cy, cz];
+                                        if (!completeCellList.Contains(c))
+                                        {
+                                            completeCellList.Add(c);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            main.debug.DebugLine("Enqueued " + completeCellList.Count + " relevant cells");
+            return Shuffle.RandomQueue(completeCellList, rng);
+        }
+        internal void ApplyRuleMatch(RuleMatch rm) //apply a matched rule to a region of space
+        {
+            main.debug.DebugLine("Applying RuleMatch. Operations count is " + OpCount);
+            for (int x = 0; x < rm.TargetRegion.GetLength(0); x++)
+            {
+                for (int y = 0; y < rm.TargetRegion.GetLength(1); y++)
+                {
+                    for (int z = 0; z < rm.TargetRegion.GetLength(2); z++)
+                    {
+                        if (rm.Rule.StrOut[rm.TransformKey][x, y, z] != "*" && rm.Rule.StrIn[rm.TransformKey][x, y, z] != rm.Rule.StrOut[rm.TransformKey][x, y, z])
+                        {
+                            Cell c = rm.TargetRegion[x, y, z];
                             c.SetCellState(rm.Rule.StrOut[rm.TransformKey][x, y, z]);
-                            //main.debug.DebugLine("Cell " + c.X + ", " + c.Y + ", " + c.Z + " in \"" + Name + "\" state set to \"" + c.State + "\"");
+                            main.debug.DebugLine("Cell " + c.X + ", " + c.Y + ", " + c.Z + " in \"" + Name + "\" state set to \"" + c.State + "\"");
                         }
                     }
                 }
@@ -482,19 +635,19 @@ namespace MJ_Proc_Gen
             rm.Rule.IncrementUses();
             if (rm.Rule.RType() != "parallel")
             {
-                IncrementOpCount();
+                //IncrementOpCount();
                 AppendOutput(rm.Rule.Name());
             }
         }
-        public bool MatchOutputEqualsExistingState(RuleMatch rm) //Checks whether applying the rulematch would result in a change to the space. We can use this to skip useless matches
+        internal bool MatchOutputEqualsExistingState(RuleMatch rm) //Checks whether applying the rulematch would result in a change to the space. We can use this to skip useless matches
         {
-            for (int x = 0; x < rm.Region.GetLength(0); x++)
+            for (int x = 0; x < rm.TargetRegion.GetLength(0); x++)
             {
-                for (int y = 0; y < rm.Region.GetLength(1); y++)
+                for (int y = 0; y < rm.TargetRegion.GetLength(1); y++)
                 {
-                    for (int z = 0; z < rm.Region.GetLength(2); z++)
+                    for (int z = 0; z < rm.TargetRegion.GetLength(2); z++)
                     {
-                        if (rm.Rule.StrOut[rm.TransformKey][x, y, z] != "*" && rm.Region[x, y, z].State != rm.Rule.StrOut[rm.TransformKey][x, y, z])
+                        if (rm.Rule.StrOut[rm.TransformKey][x, y, z] != "*" && rm.TargetRegion[x, y, z].State != rm.Rule.StrOut[rm.TransformKey][x, y, z])
                         {
                             return false;
                         }
@@ -504,17 +657,20 @@ namespace MJ_Proc_Gen
             //main.debug.DebugLine("Useless rule found");
             return true;
         }
-        public void AppendOutput(string ruleName) //Encodes the current states of all cells in this space to a string and appends it to spaceStateOutput
+        internal void AppendOutput(string ruleName) //Encodes the current states of all cells in this space to a string and appends it to spaceStateOutput
         {
             outputFrameCount++;
-            //main.debug.DebugLine("Output frame count: " +  outputFrameCount);
+            if (main != null)
+            {
+                main.debug.DebugLine("Output frame count: " + outputFrameCount);
+            }
             string s = "";
             if (spaceStateOutput != "") { s += "&"; }
             for (int z = 0; z < SizeZ; z++)
             {
                 for (int y = 0; y < SizeY; y++)
                 {
-                    for (int x = 0; x <  SizeX; x++)
+                    for (int x = 0; x < SizeX; x++)
                     {
                         s += cellGrid[x, y, z].State;
                         if (x < SizeX - 1) { s += ","; }
@@ -526,17 +682,18 @@ namespace MJ_Proc_Gen
             spaceStateOutput += s;
             rulesRun.Add(ruleName);
         }
-        public void Reset() //resets the space to all default values
+        internal void Reset() //resets the space to all default values
         {
             main.debug.DebugLine("Resetting space");
             opCount = 0;
+            spaceStateOutput = "";
+            outputFrameCount = 0;
+            rulesRun.Clear();
+            cellsOfState.Clear();
             foreach (Cell c in cellGrid)
             {
                 c.Reset(this);
             }
-            spaceStateOutput = "";
-            outputFrameCount = 0;
-            rulesRun.Clear();
             AppendOutput("*defaultState*");
         }
     }
@@ -671,6 +828,8 @@ namespace MJ_Proc_Gen
         public bool[] Symmetries;
         private RuleSet parentRuleSet;
         public RuleSet ParentRuleSet() { return parentRuleSet; }
+        private List<string> ruleInStates;
+        internal List<string> RuleInStates { get { return ruleInStates; } }
         public Rule(string name, Dictionary<string, string[,,]> strIn, Dictionary<string, string[,,]> strOut, string type, bool[] symmetries, int limit, RuleSet parentRuleSet, MJ_Main mj_main)
         {
             this.main = mj_main;
@@ -686,6 +845,14 @@ namespace MJ_Proc_Gen
             finishedInRound = false;
             GenerateRotationsReflections(strIn, symmetries);
             GenerateRotationsReflections(strOut, symmetries);
+            ruleInStates = new List<string>();
+            foreach (string s in strIn["base"])
+            {
+                if (!ruleInStates.Contains(s))
+                {
+                    ruleInStates.Add(s);
+                }
+            }
         }
         private void GenerateRotationsReflections(Dictionary<string, string[,,]> dic, bool[] sym)
         {
@@ -836,19 +1003,19 @@ namespace MJ_Proc_Gen
     public struct RuleMatch //conveys the necessary information to apply a matched rule
     {
         internal bool MatchFound { get; }
-        internal Cell[,,] Region { get; }
+        internal Cell[,,] TargetRegion { get; }
         internal Rule Rule { get; }
         internal string TransformKey { get; }
-        internal RuleMatch(Cell[,,] region, Rule rule, string transformKey) //use this constructor when a match is found
+        internal RuleMatch(Cell[,,] targetRegion, Rule rule, string transformKey) //use this constructor when a match is found
         {
-            Region = region;
+            TargetRegion = targetRegion;
             Rule = rule;
             TransformKey = transformKey;
             MatchFound = true;
         }
         internal RuleMatch(Rule rule) //use this constructor when a match is not found
         {
-            Region = null;
+            TargetRegion = null;
             this.Rule = rule;
             TransformKey = null;
             MatchFound = false;
@@ -870,17 +1037,23 @@ namespace MJ_Proc_Gen
             this.z = z;
             this.state = state;
             this.space = space;
+            space.UpdateCellsOfState(null, state, this);
+            space.AddCellToWildcardList(this);
         }
-        public void Reset(Space s)
+        internal void Reset(Space s)
         {
             state = s.DefaultState;
+            space.UpdateCellsOfState(null, s.DefaultState, this);
+            space.AddCellToWildcardList(this);
         }
-        public void SetCellState(string s)
+        internal void SetCellState(string s)
         {
-            if (RGX.RIsMatch(s, RGX.AlphaNumeric))
+            string oldKey = state;
+            if (RGX.RIsMatch(s, RGX.AlphaNumeric)) //TODO: you don't need to check this every time you set a cell, just do it when the ruleset .xml is read in
             {
                 state = s;
             }
+            space.UpdateCellsOfState(oldKey, state, this);
         }
     }
     public class Debug_Logger //contains lines of text for debugging
@@ -918,6 +1091,10 @@ namespace MJ_Proc_Gen
         }
         internal static List<T> RandomList<T>(List<T> input, Random rng)
         {
+            if (input.Count == 0)
+            {
+                return input;
+            }
             T[] array = new T[input.Count];
             List<int> remainingIndicies = new List<int>();
             for (int a = 0; a < input.Count; a++)
@@ -934,19 +1111,22 @@ namespace MJ_Proc_Gen
             }
             return new List<T>(array);
         }
+        internal static List<T> RandomList<T>(T[,,] input, Random rng)
+        {
+            List<T> list = new List<T>();
+            foreach (T t in input)
+            {
+                list.Add(t);
+            }
+            return RandomList(list, rng);
+        }
         internal static Queue<T> RandomQueue<T>(List<T> input, Random rng) 
         {
             return new Queue<T>(RandomList(input, rng));
         }
         internal static Queue<T> RandomQueue<T>(T[,,] input, Random rng)
         {
-            List<T> list = new List<T>();
-            foreach(T t in input)
-            {
-                list.Add(t);
-            }
-            List<T> randomList = RandomList(list, rng);
-            return new Queue<T>(randomList);
+            return new Queue<T>(RandomList(input, rng));
         }
     }
     internal static class RGX //use this for typical regex comparisons
