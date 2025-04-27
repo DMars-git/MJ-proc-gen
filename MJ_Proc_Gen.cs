@@ -21,7 +21,7 @@ namespace MJ_Proc_Gen
             debug = new Debug_Logger(enableDebug);
             spaces = new Dictionary<string, Space>();
             ruleSets = new Dictionary<string, RuleSet>();
-            debug.DebugLine("Created MJ_Main");
+            debug.DebugLine("Initiated MJ_Main");
         }
         public void AddSpace(string name, int sizeX, int sizeY, int sizeZ, string defaultState) //call from front end to construct a space and add it
         {
@@ -42,9 +42,9 @@ namespace MJ_Proc_Gen
             space.SetMain(this);
             debug.DebugLine("Added space \"" + space.Name + "\" to list. Size: x: " + space.SizeX + ", y: " + space.SizeY + ", z: " + space.SizeZ);
         }
-        public void AddRuleSet(string path) //call from front end to add a ruleset from an .xml file
+        public void AddRuleSet(string s) //call from front end to add a ruleset from an .xml file
         {
-            RuleSet set = XMLInterpreter.ImportRuleSet(path, this);
+            RuleSet set = XMLInterpreter.ImportRuleSet(s, this);
             string name = set.Name();
             ruleSets.Add(name, set);
             debug.DebugLine("Added ruleset \"" + name + "\" to list.");
@@ -60,13 +60,13 @@ namespace MJ_Proc_Gen
             rootRuleSet.ResetUses();
             Random rng = new Random(seed);
             RecursiveRunRuleSet(space, rootRuleSet, maxOperations, rng);
-            debug.DebugLine("End RunMJ(). Total time = " + stopwatch.ElapsedMilliseconds/1000);
+            debug.DebugLine("End RunMJ(). Total time = " + Math.Round((double)stopwatch.ElapsedMilliseconds/1000d,2) + " seconds.");
         }
         private bool RecursiveRunRuleSet(Space space, RuleSet ruleSet, int maxOps, Random rng)
         {
             debug.DebugLine("Ruleset \"" + ruleSet.Name() + "\" has run " + ruleSet.Uses() + " out of " + ruleSet.Limit() + " times. Space \"" + space.Name + "\" has received " + space.OpCount + " operations out of " + maxOps + ". FinishedInRound is " + ruleSet.IsFinishedInRound());
             //Conditions to run
-            if (ruleSet.RType() == "retrace") //Retrace rulsets need to check if previous rules will work. Therefore, we need to reset FinishedInRound
+            if (ruleSet.GetRType() == RuleSet.RType.Retrace) //Retrace rulsets need to check if previous rules will work. Therefore, we need to reset FinishedInRound
             {
                 debug.DebugLine("Ruleset \"" + ruleSet.Name() + "\" is a \"retrace\" type. Resetting FinishedInRound.");
                 ruleSet.ResetFinishedInRound();
@@ -88,9 +88,10 @@ namespace MJ_Proc_Gen
             }
             //Run RuleSet depending on its RType
             debug.DebugLine("Ruleset \"" + ruleSet.Name() + "\" run " + ruleSet.Uses() + " out of " + ruleSet.Limit());
-            switch (ruleSet.RType())
+            string spaceStateBefore = space.SpaceStateOutput;
+            switch (ruleSet.GetRType())
             {
-                case "random": //Select a random rule or ruleset from the current ruleset to execute once. Repeat until no valid rules remain.
+                case RuleSet.RType.Random: //Select a random rule or ruleset from the current ruleset to execute once. Repeat until no valid rules remain.
                     debug.DebugLine("Running as a random ruleset");
                     if (ruleSet.LimitUnreached() && !ruleSet.IsFinishedInRound())
                     {
@@ -113,28 +114,29 @@ namespace MJ_Proc_Gen
                         }
                         //IRuleSet r = ruleSet.ChildRuleSet[rng.Next(ruleSet.ChildRuleSet.Count)];
                         debug.DebugLine("Rule or ruleset \"" + r.Name() + "\"");
-                        switch (r.IType())
+                        switch (r.GetIType())
                         {
-                            case "Rule":
+                            case IRuleSet.IType.Rule:
                                 debug.DebugLine("Running rule under current ruleset");
-                                switch (r.RType())
+                                Rule rl = (Rule)r;
+                                switch (rl.GetRType())
                                 {
-                                    case "single":
+                                    case Rule.RType.Single:
                                         RunRuleSingleOnce(r, space, maxOps, rng);
                                         break;
-                                    case "parallel":
+                                    case Rule.RType.Parallel:
                                         RunRuleParallel(r, space, maxOps, rng);
                                         break;
                                 }
                                 break;
-                            case "RuleSet":
+                            case IRuleSet.IType.RuleSet:
                                 debug.DebugLine("Running nested ruleset under current random ruleset");
                                 r.ResetFinishedInRound();
                                 RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng); //need to check if the this failed to change anything last time
                                 break;
-                            case "Break":
+                            case IRuleSet.IType.RuleSetBreak:
                                 debug.DebugLine("Breaking out of ruleset");
-                                ruleSet.SetChildrenFinishedInRoundTrue();
+                                ruleSet.SetFinishedInRoundTrue();
                                 goto breakRuleSet;
                             default:
                                 debug.DebugException("Unrecognized IType in RuleSet");
@@ -142,7 +144,7 @@ namespace MJ_Proc_Gen
                         }
                     }
                     break;
-                case "sequence": //Execute each rule in a ruleset one time in order. When the end of the ruleset is reached, start over from the beginning.
+                case RuleSet.RType.Sequence: //Execute each rule in a ruleset one time in order. When the end of the ruleset is reached, start over from the beginning if repeat is true.
                     //TODO: Consider making sequences not execute further rules if one rule fails, or make a new RType for it
                     debug.DebugLine("Running as a sequence ruleset");
                     if (ruleSet.LimitUnreached() && !ruleSet.IsFinishedInRound())
@@ -151,31 +153,32 @@ namespace MJ_Proc_Gen
                         foreach (IRuleSet r in ruleSet.ChildRuleSet)
                         {
                             debug.DebugLine("Rule or ruleset \"" + r.Name() + "\"");
-                            switch (r.IType())
+                            switch (r.GetIType())
                             {
-                                case "Rule":
+                                case IRuleSet.IType.Rule:
                                     debug.DebugLine("Running rule under current ruleset");
-                                    switch (r.RType())
+                                    Rule rl = (Rule)r;
+                                    switch (rl.GetRType())
                                     {
-                                        case "single":
+                                        case Rule.RType.Single:
                                             RunRuleSingleOnce(r, space, maxOps, rng);
                                             //if (!RunRuleSingleOnce(r, space, maxOps, rng)) { return false; }
                                             break;
-                                        case "parallel":
+                                        case Rule.RType.Parallel:
                                             RunRuleParallel(r, space, maxOps, rng);
                                             //if (!RunRuleParallel(r, space, maxOps, rng)) { return false; }
                                             break;
                                     }
                                     break;
-                                case "RuleSet": //TODO: Should rulesets nested under a sequence ruleset be forced to only run once?
+                                case IRuleSet.IType.RuleSet: //TODO: Should rulesets nested under a sequence ruleset be forced to only run once?
                                     debug.DebugLine("Running nested ruleset under current sequence ruleset");
                                     r.ResetFinishedInRound();
                                     RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng);
                                     //if (!RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng)) { return false; }
                                     break;
-                                case "Break":
+                                case IRuleSet.IType.RuleSetBreak:
                                     debug.DebugLine("Breaking out of ruleset");
-                                    ruleSet.SetChildrenFinishedInRoundTrue();
+                                    ruleSet.SetFinishedInRoundTrue();
                                     goto breakRuleSet;
                                 default:
                                     debug.DebugException("Unrecognized IType in RuleSet");
@@ -184,7 +187,7 @@ namespace MJ_Proc_Gen
                         }
                     }
                     break;
-                case "retrace": //Execute the first rule until no matches are left. Then start checking the next rule, but at each cycle, check if the previous rules have a valid solution again.
+                case RuleSet.RType.Retrace: //Execute the first rule until no matches are left. Then start checking the next rule, but at each cycle, check if the previous rules have a valid solution again.
                     debug.DebugLine("Running as a retrace ruleset");
                     int i = 0;
                     while (i < ruleSet.ChildRuleSet.Count && ruleSet.LimitUnreached() && !ruleSet.IsFinishedInRound())
@@ -193,30 +196,31 @@ namespace MJ_Proc_Gen
                         IRuleSet r = ruleSet.ChildRuleSet[i];
                         debug.DebugLine("Rule or ruleset \"" + r.Name() + "\"");
                         bool b = false;
-                        switch (r.IType())
+                        switch (r.GetIType())
                         {
-                            case "Rule":
+                            case IRuleSet.IType.Rule:
                                 debug.DebugLine("Running rule under current ruleset");
-                                switch (r.RType())
+                                Rule rl = (Rule)r;
+                                switch (rl.GetRType())
                                 {
-                                    case "single":
+                                    case Rule.RType.Single:
                                         if (RunRuleSingleOnce(r, space, maxOps, rng)) { b = true; }
                                         break;
-                                    case "parallel":
+                                    case Rule.RType.Parallel:
                                         if (RunRuleParallel(r, space, maxOps, rng)) { b = true; }
                                         break;
                                 }
                                 break;
-                            case "RuleSet": //TODO: Test ruleSets nested in retrace rulesets
+                            case IRuleSet.IType.RuleSet: //TODO: Test ruleSets nested in retrace rulesets
                                 debug.DebugLine("Running nested ruleset under current retrace ruleset");
                                 int prevFrameCount = space.OutputFrameCount;
                                 r.ResetFinishedInRound();
                                 RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng);
                                 if (space.OutputFrameCount != prevFrameCount) { b = true; }
                                 break;
-                            case "Break":
+                            case IRuleSet.IType.RuleSetBreak:
                                 debug.DebugLine("Breaking out of ruleset");
-                                ruleSet.SetChildrenFinishedInRoundTrue();
+                                ruleSet.SetFinishedInRoundTrue();
                                 goto breakRuleSet;
                             default:
                                 debug.DebugException("Unrecognized IType in RuleSet");
@@ -230,35 +234,36 @@ namespace MJ_Proc_Gen
                         i++;
                     }
                     break;
-                case "series": //Execute a rule as many times as possible, then move on to the next rule.
+                case RuleSet.RType.Series: //Execute a rule as many times as possible, then move on to the next rule.
                     debug.DebugLine("Running as a series ruleset. There are " + ruleSet.ChildRuleSet.Count + " rules and rulesets.");
                     if (ruleSet.IsFinishedInRound()) { break; }
                     foreach (IRuleSet r in ruleSet.ChildRuleSet)
                     {
                         debug.DebugLine("Rule or ruleset \"" + r.Name() + "\". Finished in round = " + ruleSet.IsFinishedInRound());
                         ruleSet.IncrementUses();
-                        switch (r.IType())
+                        switch (r.GetIType())
                         {
-                            case "Rule":
+                            case IRuleSet.IType.Rule:
                                 debug.DebugLine("Running rule under current ruleset");
-                                switch (r.RType())
+                                Rule rl = (Rule)r;
+                                switch (rl.GetRType())
                                 {
-                                    case "single":
+                                    case Rule.RType.Single:
                                         RunRuleSingleRepeat(r, space, maxOps, rng);
                                         break;
-                                    case "parallel":
+                                    case Rule.RType.Parallel:
                                         RunRuleParallel(r, space, maxOps, rng);
                                         break;
                                 }
                                 break;
-                            case "RuleSet":
+                            case IRuleSet.IType.RuleSet:
                                 debug.DebugLine("Running nested ruleset under current series ruleset");
                                 r.ResetFinishedInRound();
                                 RecursiveRunRuleSet(space, (RuleSet)r, maxOps, rng);
                                 break;
-                            case "Break":
+                            case IRuleSet.IType.RuleSetBreak:
                                 debug.DebugLine("Breaking out of ruleset");
-                                ruleSet.SetChildrenFinishedInRoundTrue();
+                                ruleSet.SetFinishedInRoundTrue();
                                 goto breakRuleSet;
                             default:
                                 debug.DebugException("Unrecognized IType in RuleSet");
@@ -267,13 +272,13 @@ namespace MJ_Proc_Gen
                     }
                     break;
                 default:
-                    debug.DebugException("Invalid RuleSet Type \"" + ruleSet.RType() + "\"");
+                    debug.DebugException("Invalid RuleSet Type \"" + ruleSet.GetRType().ToString() + "\"");
                     break;
             }
-            if (ruleSet.Repeat()) //rulesets with "repeat" set to true will always attempt to run again
+            if (ruleSet.Repeat() && ruleSet.GetRType() != RuleSet.RType.Series && spaceStateBefore != space.SpaceStateOutput) //rulesets (except series) with "repeat" set to true will always attempt to run again, unless nothing has changed in the space state
             {
-                debug.DebugLine("Repeatting ruleset \"" + ruleSet.Name() + "\"");
-                //ruleSet.ResetFinishedInRound();
+                //Enabling this for series rulesets causes crashes. If there is a need for series rulesets to repeat, this issue will need to be revisited.
+                debug.DebugLine("Repeating ruleset \"" + ruleSet.Name() + "\"");
                 RecursiveRunRuleSet(space, ruleSet, maxOps, rng);
             }
             breakRuleSet: //Use this label to break out of this RuleSet when a RuleSetBreak is found
@@ -661,13 +666,13 @@ namespace MJ_Proc_Gen
                         {
                             Cell c = rm.TargetRegion[x, y, z];
                             c.SetCellState(rm.Rule.StrOut[rm.TransformKey][x, y, z]);
-                            main.debug.DebugLine("Cell " + c.X + ", " + c.Y + ", " + c.Z + " in \"" + Name + "\" state set to \"" + c.State + "\"");
+                            //main.debug.DebugLine("Cell " + c.X + ", " + c.Y + ", " + c.Z + " in \"" + Name + "\" state set to \"" + c.State + "\"");
                         }
                     }
                 }
             }
             rm.Rule.IncrementUses();
-            if (rm.Rule.RType() != "parallel")
+            if (rm.Rule.GetRType() != Rule.RType.Parallel)
             {
                 //IncrementOpCount();
                 AppendOutput(rm.Rule.Name());
@@ -733,8 +738,9 @@ namespace MJ_Proc_Gen
     }
     public interface IRuleSet //allows both Rules and RuleSets to exist in the same list, and contains some of their common properties
     {
-        string IType(); //Stores whether this is a rule or a ruleset, useful for when executing the ruleset
-        string RType(); //Stores the type of rule or ruleset
+        enum IType { Rule, RuleSet, RuleSetBreak }; //Stores whether this is a rule or a ruleset, useful for when executing the ruleset
+        IType GetIType();
+        enum RType { }; //Stores the type of rule or ruleset
         int Limit(); //The total number of times this rule or ruleset may be run. Limit = -1 for unlimited runs
         int Uses(); //The total number of times this rule has been used so far
         void ResetUses(); //Reset the number of uses for this rule or ruleset
@@ -743,6 +749,7 @@ namespace MJ_Proc_Gen
         string Name(); //The name of the rule or ruleset
         bool IsFinishedInRound(); //Set to true if the space contains no matches for this rule. Or, if this is a ruleset, there were no matches for any of its child rules. This is used to stop the search for matches once no more matches remain.
         void ResetFinishedInRound(); //Reset all IsFinishedInRound for this ruleset and its child rules at the start of a RecursiveRunRuleSet cycle
+        void SetFinishedInRoundTrue();
         RuleSet ParentRuleSet();
         int Weight(); //weight used for random choice
     }
@@ -750,10 +757,10 @@ namespace MJ_Proc_Gen
     {
         private MJ_Main main;
         public MJ_Main MJ_Main { get { return main; } }
-        private string iType;
-        public string IType() { return iType; }
-        private string rType;
-        public string RType() { return rType; }
+        public IRuleSet.IType GetIType() { return IRuleSet.IType.RuleSet; }
+        internal enum RType { Series, Sequence, Random, Retrace };
+        internal RType rType;
+        internal RType GetRType() { return rType; }
         private int limit;
         public int Limit() { return limit; }
         private int weight;
@@ -783,11 +790,10 @@ namespace MJ_Proc_Gen
         public RuleSet(string name, List<IRuleSet> children, string ruleSetType, bool repeat, int limit, int weight, MJ_Main main) //constructor only for the root ruleset with a specified limit
         {
             this.main = main;
-            iType = "RuleSet";
             this.name = name;
             parentRuleSet = null;
             childrenRuleSets = children;
-            rType = ruleSetType;
+            rType = RTypeFromString(ruleSetType);
             this.limit = limit;
             this.weight = weight;
             uses = 0;
@@ -796,15 +802,30 @@ namespace MJ_Proc_Gen
         public RuleSet(string name, RuleSet parent, List<IRuleSet> children, string ruleSetType, bool repeat, int limit, int weight, MJ_Main main) //constructor for all child rulesets with a specified limit
         {
             this.main = main;
-            iType = "RuleSet";
             this.name = name;
             parentRuleSet = parent;
             childrenRuleSets = children;
-            rType = ruleSetType;
+            rType = RTypeFromString(ruleSetType);
             this.limit = limit;
             this.weight = weight;
             uses = 0;
             this.repeat = repeat;
+        }
+        private RType RTypeFromString(string type)
+        {
+            switch (type)
+            {
+                case "series":
+                    return RType.Series;
+                case "sequence":
+                    return RType.Sequence;
+                case "random":
+                    return RType.Random;
+                case "retrace":
+                    return RType.Retrace;
+                default:
+                    throw new Exception("Invalid rType declared for ruleset: " + name);
+            }
         }
         private void RecursiveResetUses()
         {
@@ -822,19 +843,11 @@ namespace MJ_Proc_Gen
             }
             return true;
         }
-        public void SetChildrenFinishedInRoundTrue()
+        public void SetFinishedInRoundTrue()
         {
             foreach (IRuleSet r in childrenRuleSets)
             {
-                if (r.IType() == "RuleSet")
-                {
-                    RuleSet rs = r as RuleSet;
-                    rs.SetChildrenFinishedInRoundTrue();
-                }
-                else
-                {
-                    r.ResetFinishedInRound();
-                }
+                r.SetFinishedInRoundTrue();
             }
         }
         public void ResetFinishedInRound()
@@ -849,10 +862,10 @@ namespace MJ_Proc_Gen
     {
         private MJ_Main main;
         public MJ_Main MJ_Main { get { return main; } }
-        private string iType;
-        public string IType() { return iType; }
-        private string rType;
-        public string RType() { return rType; }
+        public IRuleSet.IType GetIType() { return IRuleSet.IType.Rule; }
+        internal enum RType { Single, Parallel };
+        internal RType rType;
+        internal RType GetRType() { return rType; }
         private int limit;
         public int Limit() { return limit; }
         private int weight;
@@ -889,11 +902,10 @@ namespace MJ_Proc_Gen
         public Rule(string name, Dictionary<string, string[,,]> strIn, Dictionary<string, string[,,]> strOut, string type, bool[] symmetries, int limit, int weight, RuleSet parentRuleSet, MJ_Main mj_main)
         {
             this.main = mj_main;
-            iType = "Rule";
             this.name = name;
             this.strIn = strIn;
             this.strOut = strOut;
-            this.rType = type;
+            rType = RTypeFromString(type);
             this.symmetries = symmetries;
             this.limit = limit;
             this.weight = weight;
@@ -909,6 +921,18 @@ namespace MJ_Proc_Gen
                 {
                     ruleInStates.Add(s);
                 }
+            }
+        }
+        private RType RTypeFromString(string type)
+        {
+            switch (type)
+            {
+                case "single":
+                    return RType.Single;
+                case "parallel":
+                    return RType.Parallel;
+                default:
+                    throw new Exception("Invalid rType declared for rule: " + name);
             }
         }
         private void GenerateRotationsReflections(Dictionary<string, string[,,]> dic, bool[] sym)
@@ -990,17 +1014,17 @@ namespace MJ_Proc_Gen
             {
                 if (noDupeList.Contains(rotx90))
                 {
-                    main.debug.DebugLine("Adding rotx90");
+                    //main.debug.DebugLine("Adding rotx90");
                     dic.Add("rotx90", rotx90);
                 }
                 if (noDupeList.Contains(rotx180))
                 {
-                    main.debug.DebugLine("Adding rotx180");
+                    //main.debug.DebugLine("Adding rotx180");
                     dic.Add("rotx180", rotx180);
                 }
                 if (noDupeList.Contains(rotx270))
                 {
-                    main.debug.DebugLine("Adding rotx270");
+                    //main.debug.DebugLine("Adding rotx270");
                     dic.Add("rotx270", rotx270);
                 }
             }
@@ -1008,17 +1032,17 @@ namespace MJ_Proc_Gen
             {
                 if (noDupeList.Contains(roty90))
                 {
-                    main.debug.DebugLine("Adding roty90");
+                    //main.debug.DebugLine("Adding roty90");
                     dic.Add("roty90", roty90);
                 }
                 if (noDupeList.Contains(roty180))
                 {
-                    main.debug.DebugLine("Adding roty180");
+                    //main.debug.DebugLine("Adding roty180");
                     dic.Add("roty180", roty180);
                 }
                 if (noDupeList.Contains(roty270))
                 {
-                    main.debug.DebugLine("Adding roty270");
+                    //main.debug.DebugLine("Adding roty270");
                     dic.Add("roty270", roty270);
                 }
             }
@@ -1026,33 +1050,33 @@ namespace MJ_Proc_Gen
             {
                 if (noDupeList.Contains(rotz90))
                 {
-                    main.debug.DebugLine("Adding rotz90");
+                    //main.debug.DebugLine("Adding rotz90");
                     dic.Add("rotz90", rotz90);
                 }
                 if (noDupeList.Contains(rotz180))
                 {
-                    main.debug.DebugLine("Adding rotz180");
+                    //main.debug.DebugLine("Adding rotz180");
                     dic.Add("rotz180", rotz180);
                 }
                 if (noDupeList.Contains(rotz270))
                 {
-                    main.debug.DebugLine("Adding rotz270");
+                    //main.debug.DebugLine("Adding rotz270");
                     dic.Add("rotz270", rotz270);
                 }
             }
             if (sym[3] && noDupeList.Contains(refx))
             {
-                main.debug.DebugLine("Adding refx");
+                //main.debug.DebugLine("Adding refx");
                 dic.Add("refx", refx);
             }
             if (sym[4] && noDupeList.Contains(refy))
             {
-                main.debug.DebugLine("Adding refy");
+                //main.debug.DebugLine("Adding refy");
                 dic.Add("refy", refy);
             }
             if (sym[5] && noDupeList.Contains(refz))
             {
-                main.debug.DebugLine("Adding refz");
+                //main.debug.DebugLine("Adding refz");
                 dic.Add("refz", refz);
             }
         }
@@ -1061,10 +1085,10 @@ namespace MJ_Proc_Gen
     {
         private MJ_Main main;
         public MJ_Main MJ_Main { get { return main; } }
-        private string iType;
-        public string IType() { return iType; }
-        private string rType;
-        public string RType() { return rType; }
+        public IRuleSet.IType GetIType() { return IRuleSet.IType.RuleSetBreak; }
+        internal enum RType { Break };
+        internal RType rType;
+        internal RType GetRType() { return rType; }
         private int limit;
         public int Limit() { return limit; }
         private int weight;
@@ -1097,10 +1121,19 @@ namespace MJ_Proc_Gen
             this.weight = weight;
             this.parentRuleSet = parentRuleSet;
             main = mj_main;
-            iType = "Break";
-            rType = "break";
+            rType = RTypeFromString("break");
             uses = 0;
             finishedInRound = false;
+        }
+        private RType RTypeFromString(string type) //I know this is an unnecessary extra step, but I wanted to hold the format for all IRuleSet types
+        {
+            switch (type)
+            {
+                case "break":
+                    return RType.Break;
+                default:
+                    throw new Exception("Invalid rType declared for ruleset: " + name);
+            }
         }
     }
     public struct RuleMatch //conveys the necessary information to apply a matched rule
@@ -1243,41 +1276,58 @@ namespace MJ_Proc_Gen
     }
     internal static class XMLInterpreter //use for translating input xmls into rules and rulesets
     {
-        internal static RuleSet ImportRuleSet(string path, MJ_Main main)
+        internal static RuleSet ImportRuleSet(string s, MJ_Main main)
         {
-            XmlDocument doc = new XmlDocument(); //new xml doc
-            doc.Load(path); //load xml from file
-            XmlNode rootNode = doc.DocumentElement; //get xml root node
-            string name = rootNode.Attributes["name"].Value; //get name of root node
+            int i = s.TakeWhile(c => char.IsWhiteSpace(c)).Count();
+            if (s[i] != '<')
+            {
+                XDocument doc = XDocument.Load(s); //new xml doc
+                XElement rootNode = doc.Root; //get xml root node
+                return ImportRuleSetXML(rootNode, main);
+            }
+            else
+            {
+                return ImportRuleSetXML(XElement.Parse(s), main);
+            }
+        }
+        internal static RuleSet ImportRuleSetXML(XElement rootNode, MJ_Main main)
+        {
+            string name = rootNode.Attribute("name").Value; //get name of root node
+            //string name = rootNode.Attributes["name"].Value; 
             List<IRuleSet> ruleList = new List<IRuleSet>(); //create empty list to be filled with rules and rulesets
-            main.debug.DebugLine("Importing ruleset " + name + " with " + rootNode.ChildNodes.Count + " children"); //report to debug log
+            main.debug.DebugLine("Importing ruleset " + name + " with " + rootNode.Elements().Count() + " children"); //report to debug log
             int limit = -1;
             int weight = 1;
             bool repeat = false;
-            if (rootNode.Attributes["limit"] != null)
+            string type = null;
+            if (rootNode.Attribute("limit") != null)
             {
-                limit = Convert.ToInt32(rootNode.Attributes["limit"].Value);
+                limit = Convert.ToInt32(rootNode.Attribute("limit").Value);
             }
-            if (rootNode.Attributes["weight"] != null)
+            if (rootNode.Attribute("weight") != null)
             {
-                limit = Convert.ToInt32(rootNode.Attributes["weight"].Value);
+                weight = Convert.ToInt32(rootNode.Attribute("weight").Value);
             }
-            if (rootNode.Attributes["repeat"] != null)
+            if (rootNode.Attribute("repeat") != null)
             {
-                repeat = StrToBool(rootNode.Attributes["repeat"].Value);
+                repeat = StrToBool(rootNode.Attribute("repeat").Value);
             }
-            RuleSet rootSet = new RuleSet(name, ruleList, rootNode.Attributes["type"].Value, repeat, limit, weight, main); //create root ruleset from root node
+            if (rootNode.Attribute("type").Value != null)
+            {
+                type = rootNode.Attribute("type").Value;
+            }
+            RuleSet rootSet = new RuleSet(name, ruleList, type, repeat, limit, weight, main); //create root ruleset from root node
             rootSet.ChildRuleSet = RecursiveImportRuleSet(rootSet, rootNode, main); //recursively populate child rules and rulesets
             main.debug.DebugLine("Imported ruleset " + name); //report to debug log
             return rootSet; //return complete ruleset
         }
-        private static List<IRuleSet> RecursiveImportRuleSet(RuleSet rs, XmlNode xn, MJ_Main main) //create a tree of rules and rulesets
+        private static List<IRuleSet> RecursiveImportRuleSet(RuleSet rs, XElement xe, MJ_Main main) //create a tree of rules and rulesets
         {
             List<IRuleSet> ruleList = new List<IRuleSet>();
-            foreach (XmlNode ruleNode in xn.ChildNodes)
+            foreach (XElement ruleNode in xe.Elements())
             {
-                main.debug.DebugLine("Adding node \"" + ruleNode.Attributes["name"].Value + "\" as a " + ruleNode.Name + " child of \"" + ruleNode.ParentNode.Attributes["name"].Value + "\"");
-                switch (ruleNode.Name)
+                main.debug.DebugLine("Adding node \"" + ruleNode.Attribute("name").Value + "\" as a " + ruleNode.Name + " child of \"" + ruleNode.Parent.Attribute("name").Value + "\"");
+                switch (ruleNode.Name.ToString())
                 {
                     case "rule":
                         ruleList.Add(RuleFromXmlNode(ruleNode, rs, main));
@@ -1285,35 +1335,40 @@ namespace MJ_Proc_Gen
                     case "ruleset":
                         int limit = -1;
                         int weight = 1;
-                        if (ruleNode.Attributes["limit"] != null)
-                        {
-                            limit = Convert.ToInt32(ruleNode.Attributes["limit"].Value);
-                        }
-                        if (ruleNode.Attributes["weight"] != null)
-                        {
-                            limit = Convert.ToInt32(ruleNode.Attributes["weight"].Value);
-                        }
+                        bool repeat = false;
                         string type = null;
-                        if (ruleNode.Attributes["type"].Value != null && ValidRType("ruleset", ruleNode.Attributes["type"].Value))
+                        if (ruleNode.Attribute("limit") != null)
                         {
-                            type = ruleNode.Attributes["type"].Value;
+                            limit = Convert.ToInt32(ruleNode.Attribute("limit").Value);
                         }
-                        RuleSet newRuleSet = new RuleSet(ruleNode.Attributes["name"].Value, rs, new List<IRuleSet>(), type, StrToBool(ruleNode.Attributes["repeat"].Value), limit, weight, main);
+                        if (ruleNode.Attribute("weight") != null)
+                        {
+                            weight = Convert.ToInt32(ruleNode.Attribute("weight").Value);
+                        }
+                        if (ruleNode.Attribute("repeat") != null)
+                        {
+                            repeat = StrToBool(ruleNode.Attribute("repeat").Value);
+                        }
+                        if (ruleNode.Attribute("type").Value != null && ValidRType("ruleset", ruleNode.Attribute("type").Value))
+                        {
+                            type = ruleNode.Attribute("type").Value;
+                        }
+                        RuleSet newRuleSet = new RuleSet(ruleNode.Attribute("name").Value, rs, new List<IRuleSet>(), type, repeat, limit, weight, main);
                         newRuleSet.ChildRuleSet = RecursiveImportRuleSet(newRuleSet, ruleNode, main);
                         ruleList.Add(newRuleSet);
                         break;
                     case "break":
                         int breakLimit = -1;
                         int breakWeight = 1;
-                        if (ruleNode.Attributes["limit"] != null)
+                        if (ruleNode.Attribute("limit") != null)
                         {
-                            breakLimit = Convert.ToInt32(ruleNode.Attributes["limit"].Value);
+                            breakLimit = Convert.ToInt32(ruleNode.Attribute("limit").Value);
                         }
-                        if (ruleNode.Attributes["weight"] != null)
+                        if (ruleNode.Attribute("weight") != null)
                         {
-                            breakWeight = Convert.ToInt32(ruleNode.Attributes["weight"].Value);
+                            breakWeight = Convert.ToInt32(ruleNode.Attribute("weight").Value);
                         }
-                        RuleSetBreak newBreak = new RuleSetBreak(ruleNode.Attributes["name"].Value, breakLimit, breakWeight, rs, main);
+                        RuleSetBreak newBreak = new RuleSetBreak(ruleNode.Attribute("name").Value, breakLimit, breakWeight, rs, main);
                         ruleList.Add(newBreak);
                         break;
                     default:
@@ -1323,43 +1378,43 @@ namespace MJ_Proc_Gen
             }
             return ruleList;
         }
-        private static Rule RuleFromXmlNode(XmlNode node, RuleSet parent, MJ_Main main) //TODO: Clean this up. Add exceptions and default values
+        private static Rule RuleFromXmlNode(XElement element, RuleSet parent, MJ_Main main) //TODO: Clean this up. Add exceptions and default values
         {
             string ruleIn = null;
             string ruleOut = null;
-            string[] inOut = node.InnerText.Split('=');
+            string[] inOut = element.Value.Split('=');
             if (inOut.Length != 2)
             {
-                main.debug.DebugException("Invalid rule text in rule: \"" + node.Attributes["name"].Value + "\"");
+                main.debug.DebugException("Invalid rule text in rule: \"" + element.Attribute("name").Value + "\"");
             }
             else
             {
                 ruleIn = inOut[0];
                 ruleOut = inOut[1];
             }
-            bool rotx = node.Attributes["rotx"] != null ? StrToBool(node.Attributes["rotx"].Value) : false;
-            bool roty = node.Attributes["roty"] != null ? StrToBool(node.Attributes["roty"].Value) : false;
-            bool rotz = node.Attributes["rotz"] != null ? StrToBool(node.Attributes["rotz"].Value) : false;
-            bool refx = node.Attributes["refx"] != null ? StrToBool(node.Attributes["refx"].Value) : false;
-            bool refy = node.Attributes["refy"] != null ? StrToBool(node.Attributes["refy"].Value) : false;
-            bool refz = node.Attributes["refz"] != null ? StrToBool(node.Attributes["refz"].Value) : false;
+            bool rotx = element.Attribute("rotx") != null ? StrToBool(element.Attribute("rotx").Value) : false;
+            bool roty = element.Attribute("roty") != null ? StrToBool(element.Attribute("roty").Value) : false;
+            bool rotz = element.Attribute("rotz") != null ? StrToBool(element.Attribute("rotz").Value) : false;
+            bool refx = element.Attribute("refx") != null ? StrToBool(element.Attribute("refx").Value) : false;
+            bool refy = element.Attribute("refy") != null ? StrToBool(element.Attribute("refy").Value) : false;
+            bool refz = element.Attribute("refz") != null ? StrToBool(element.Attribute("refz").Value) : false;
             bool[] sym = new bool[6] { rotx, roty, rotz, refx, refy, refz };
             int limit = -1;
-            if (node.Attributes["limit"] != null)
+            if (element.Attribute("limit") != null)
             {
-                limit = Convert.ToInt32(node.Attributes["limit"].Value);
+                limit = Convert.ToInt32(element.Attribute("limit").Value);
             }
             int weight = 1;
-            if (node.Attributes["weight"] != null)
+            if (element.Attribute("weight") != null)
             {
-                weight = Convert.ToInt32(node.Attributes["weight"].Value);
+                weight = Convert.ToInt32(element.Attribute("weight").Value);
             }
             string type = "single";
-            if (node.Attributes["type"].Value != null && ValidRType("rule", node.Attributes["type"].Value))
+            if (element.Attribute("type").Value != null && ValidRType("rule", element.Attribute("type").Value))
             {
-                type = node.Attributes["type"].Value;
+                type = element.Attribute("type").Value;
             }
-            Rule r = new Rule(node.Attributes["name"].Value, stringTo3DStringArrayDic(ruleIn, sym, main), stringTo3DStringArrayDic(ruleOut, sym, main), type, sym, limit, weight, parent, main);
+            Rule r = new Rule(element.Attribute("name").Value, stringTo3DStringArrayDic(ruleIn, sym, main), stringTo3DStringArrayDic(ruleOut, sym, main), type, sym, limit, weight, parent, main);
             return r;
         }
         private static bool ValidRType(string key, string value)
